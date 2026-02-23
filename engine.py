@@ -95,6 +95,7 @@ class Device:
     id: str
     match_type: str = "contains"     # contains | exact | regex
     confirm_on_disconnect: bool = False
+    execution_condition: str = ""    # Condition globale d'exécution des actions
     on_connect: list[Action] = field(default_factory=list)
     on_disconnect: list[Action] = field(default_factory=list)
     connected: bool = False
@@ -107,6 +108,7 @@ class Device:
             id=d["id"],
             match_type=d.get("match_type", "contains"),
             confirm_on_disconnect=d.get("confirm_on_disconnect", False),
+            execution_condition=d.get("execution_condition", ""),
             on_connect=[Action.from_dict(a) for a in d.get("on_connect", [])],
             on_disconnect=[Action.from_dict(a) for a in d.get("on_disconnect", [])],
         )
@@ -117,6 +119,7 @@ class Device:
             "id": self.id,
             "match_type": self.match_type,
             "confirm_on_disconnect": self.confirm_on_disconnect,
+            "execution_condition": self.execution_condition,
             "on_connect": [a.to_dict() for a in self.on_connect],
             "on_disconnect": [a.to_dict() for a in self.on_disconnect],
         }
@@ -603,6 +606,9 @@ class Engine:
 
     def _execute_actions(self, device: Device, actions: list[Action]):
         """Exécute les actions dans un thread dédié — ne bloque JAMAIS le ScanWorker."""
+        if device.execution_condition and not self._check_condition(device.execution_condition):
+            log.info(f"Condition d'exécution non remplie pour {device.name}, actions annulées")
+            return
         for action in actions:
             if not self._check_condition(action.condition):
                 continue

@@ -747,6 +747,61 @@ class DeviceWizard(QDialog):
         form.addRow("", self.match_hint)
 
         layout.addLayout(form)
+
+        # Section conditions d'exécution
+        cond_group = QGroupBox("Conditions d'exécution")
+        cond_group.setStyleSheet(STYLE_GROUP)
+        cond_group.setToolTip(
+            "Définissez des conditions qui doivent être remplies pour que les actions\n"
+            "de ce périphérique s'exécutent (connexion et déconnexion)."
+        )
+        cond_layout = QVBoxLayout(cond_group)
+        cond_layout.setSpacing(6)
+        cond_layout.setContentsMargins(10, 10, 10, 10)
+
+        cond_info = QLabel(
+            "Les actions ne s'exécuteront que si toutes les conditions sont vraies.\n"
+            "Exemple : bloquer les actions si un autre périphérique spécifique est présent."
+        )
+        cond_info.setStyleSheet("color: #8888aa; font-size: 9px; font-style: italic;")
+        cond_info.setWordWrap(True)
+        cond_layout.addWidget(cond_info)
+
+        cond_row = QHBoxLayout()
+        cond_row.setSpacing(6)
+
+        self.exec_cond_edit = QLineEdit()
+        self.exec_cond_edit.setPlaceholderText("device_present:Nom  &&  device_absent:Autre")
+        self.exec_cond_edit.setToolTip(
+            "Conditions séparées par &&  (toutes doivent être vraies)\n"
+            "  device_present:Nom  ->  ce périphérique DOIT être connecté\n"
+            "  device_absent:Nom   ->  ce périphérique NE DOIT PAS être connecté"
+        )
+        cond_row.addWidget(self.exec_cond_edit, stretch=1)
+
+        add_present_btn = QPushButton("+ présent")
+        add_present_btn.setFixedHeight(24)
+        add_present_btn.setToolTip("Ajouter : si ce périphérique est connecté")
+        add_present_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #1a2a1a; border: 1px solid #336633; border-radius: 4px; padding: 0 6px; }"
+            "QPushButton:hover { background: #1a3a1a; border-color: #55aa55; }"
+        )
+        add_present_btn.clicked.connect(lambda: self._append_exec_condition("device_present:"))
+        cond_row.addWidget(add_present_btn)
+
+        add_absent_btn = QPushButton("+ absent")
+        add_absent_btn.setFixedHeight(24)
+        add_absent_btn.setToolTip("Ajouter : si ce périphérique n'est PAS connecté")
+        add_absent_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #2a1a1a; border: 1px solid #663333; border-radius: 4px; padding: 0 6px; }"
+            "QPushButton:hover { background: #3a1a1a; border-color: #aa5555; }"
+        )
+        add_absent_btn.clicked.connect(lambda: self._append_exec_condition("device_absent:"))
+        cond_row.addWidget(add_absent_btn)
+
+        cond_layout.addLayout(cond_row)
+        layout.addWidget(cond_group)
+
         layout.addStretch()
 
         self.stack.addWidget(page)
@@ -761,6 +816,13 @@ class DeviceWizard(QDialog):
             "regex":    "✔ Vrai si l'identifiant correspond à l'expression régulière",
         }
         self.match_hint.setText(hints.get(mode, ""))
+
+    def _append_exec_condition(self, prefix: str):
+        current = self.exec_cond_edit.text().strip()
+        separator = " && " if current else ""
+        self.exec_cond_edit.setText(f"{current}{separator}{prefix}")
+        self.exec_cond_edit.setFocus()
+        self.exec_cond_edit.setCursorPosition(len(self.exec_cond_edit.text()))
 
     def _start_scan(self):
         self.scan_btn.setEnabled(False)
@@ -892,6 +954,7 @@ class DeviceWizard(QDialog):
         self.id_edit.setText(d.id)
         self.match_combo.setCurrentText(d.match_type)
         self._update_match_hint(d.match_type)
+        self.exec_cond_edit.setText(d.execution_condition)
         self.name_edit.setText(d.name)
         self.confirm_check.setChecked(d.confirm_on_disconnect)
         # Remplir les actions — on passe directement à la page 2
@@ -946,6 +1009,7 @@ class DeviceWizard(QDialog):
         name = self.name_edit.text().strip() or "Nouveau périphérique"
         dev_id = self.id_edit.text().strip()
         match_type = self.match_combo.currentText()
+        exec_condition = self.exec_cond_edit.text().strip()
         confirm = self.confirm_check.isChecked()
         on_connect = self.con_list.get_actions()
         on_disconnect = self.dis_list.get_actions()
@@ -954,6 +1018,7 @@ class DeviceWizard(QDialog):
             self.editing.name = name
             self.editing.id = dev_id
             self.editing.match_type = match_type
+            self.editing.execution_condition = exec_condition
             self.editing.confirm_on_disconnect = confirm
             self.editing.on_connect = on_connect
             self.editing.on_disconnect = on_disconnect
@@ -961,6 +1026,7 @@ class DeviceWizard(QDialog):
         else:
             self.result_device = Device(
                 name=name, id=dev_id, match_type=match_type,
+                execution_condition=exec_condition,
                 confirm_on_disconnect=confirm,
                 on_connect=on_connect, on_disconnect=on_disconnect,
             )
