@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QFormLayout, QGroupBox, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
     QSizePolicy, QStackedWidget, QVBoxLayout, QWidget,
-    QDoubleSpinBox,
+    QDoubleSpinBox, QSpinBox,
 )
 
 from engine import Action, Config, Device, get_device_type, is_internal_device, scan_usb_list
@@ -293,23 +293,56 @@ class ActionRow(QWidget):
         adv_row1.addWidget(self.sleep_spin)
         adv_outer.addLayout(adv_row1)
 
-        # Ligne 2 : condition
-        adv_row2 = QHBoxLayout()
-        adv_row2.setSpacing(6)
+        cond_edit_row = QHBoxLayout()
+        cond_edit_row.setSpacing(6)
 
         cond_lbl = QLabel("Condition :")
         cond_lbl.setStyleSheet("color: #aaaacc; font-size: 9pt;")
         cond_lbl.setFixedWidth(72)
-        adv_row2.addWidget(cond_lbl)
+        cond_edit_row.addWidget(cond_lbl)
 
         self.cond_edit = QLineEdit(self.action.condition)
-        self.cond_edit.setPlaceholderText("device_present:Nom  &&  device_absent:Autre")
+        self.cond_edit.setPlaceholderText("device_present:Nom  &&  device_absent:Autre  &&  monitors>=2")
         self.cond_edit.setToolTip(
-            "Conditions séparées par &&  (toutes doivent être vraies)\n"
-            "  device_present:Nom  →  ce périphérique DOIT être connecté\n"
-            "  device_absent:Nom   →  ce périphérique NE DOIT PAS être connecté"
+            "Conditions séparées par &&  (toutes doivent être vraies)"
         )
-        adv_row2.addWidget(self.cond_edit, stretch=1)
+        cond_edit_row.addWidget(self.cond_edit, stretch=1)
+        adv_outer.addLayout(cond_edit_row)
+
+        builder_row = QHBoxLayout()
+        builder_row.setSpacing(6)
+
+        self.cond_builder_type = QComboBox()
+        self.cond_builder_type.addItems(["Périphérique présent", "Périphérique absent", "Moniteurs ≥"])
+        self.cond_builder_type.setFixedWidth(150)
+        builder_row.addWidget(self.cond_builder_type)
+
+        self.cond_builder_name = QLineEdit()
+        self.cond_builder_name.setPlaceholderText("Nom du périphérique")
+        builder_row.addWidget(self.cond_builder_name)
+
+        self.cond_builder_monitors = QSpinBox()
+        self.cond_builder_monitors.setRange(1, 8)
+        self.cond_builder_monitors.setValue(2)
+        self.cond_builder_monitors.setFixedWidth(60)
+        builder_row.addWidget(self.cond_builder_monitors)
+
+        self.cond_builder_op = QComboBox()
+        self.cond_builder_op.addItems(["≥", "==", "≤", ">", "<"])
+        self.cond_builder_op.setFixedWidth(60)
+        builder_row.addWidget(self.cond_builder_op)
+
+        builder_add_btn = QPushButton("Ajouter")
+        builder_add_btn.setFixedHeight(24)
+        builder_add_btn.setToolTip("Ajouter la condition construite à la liste")
+        builder_add_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #2a2a3e; border: 1px solid #3a3a5a; border-radius: 4px; padding: 0 10px; }"
+            "QPushButton:hover { background: #3a3a5a; border-color: #5050aa; }"
+        )
+        builder_add_btn.clicked.connect(self._on_cond_builder_add)
+        builder_row.addWidget(builder_add_btn)
+
+        builder_row.addStretch()
 
         add_cond_present = QPushButton("＋ présent")
         add_cond_present.setFixedHeight(24)
@@ -319,7 +352,7 @@ class ActionRow(QWidget):
             "QPushButton:hover { background: #1a3a1a; border-color: #55aa55; }"
         )
         add_cond_present.clicked.connect(lambda: self._append_condition("device_present:"))
-        adv_row2.addWidget(add_cond_present)
+        builder_row.addWidget(add_cond_present)
 
         add_cond_absent = QPushButton("＋ absent")
         add_cond_absent.setFixedHeight(24)
@@ -329,9 +362,34 @@ class ActionRow(QWidget):
             "QPushButton:hover { background: #3a1a1a; border-color: #aa5555; }"
         )
         add_cond_absent.clicked.connect(lambda: self._append_condition("device_absent:"))
-        adv_row2.addWidget(add_cond_absent)
+        builder_row.addWidget(add_cond_absent)
 
-        adv_outer.addLayout(adv_row2)
+        add_monitors_btn = QPushButton("＋ ≥2 écrans")
+        add_monitors_btn.setFixedHeight(24)
+        add_monitors_btn.setToolTip("Ajouter : si au moins 2 écrans sont connectés")
+        add_monitors_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #1a1a2a; border: 1px solid #334466; border-radius: 4px; padding: 0 6px; }"
+            "QPushButton:hover { background: #1a1a3a; border-color: #5566aa; }"
+        )
+        add_monitors_btn.clicked.connect(lambda: self._append_condition("monitors>=2"))
+        builder_row.addWidget(add_monitors_btn)
+
+        adv_outer.addLayout(builder_row)
+
+        cond_summary_row = QHBoxLayout()
+        cond_summary_row.setSpacing(6)
+        self.cond_summary = QLabel()
+        self.cond_summary.setStyleSheet("color: #8888aa; font-size: 9px;")
+        cond_summary_row.addWidget(self.cond_summary, stretch=1)
+        clear_cond_btn = QPushButton("Effacer")
+        clear_cond_btn.setFixedHeight(24)
+        clear_cond_btn.clicked.connect(lambda: self.cond_edit.clear())
+        cond_summary_row.addWidget(clear_cond_btn)
+        adv_outer.addLayout(cond_summary_row)
+        self.cond_builder_type.currentIndexChanged.connect(self._update_cond_builder)
+        self._update_cond_builder(self.cond_builder_type.currentIndex())
+        self.cond_edit.textChanged.connect(self._update_cond_summary)
+        self._update_cond_summary()
         self.adv_panel.setVisible(False)
         root.addWidget(self.adv_panel)
 
@@ -424,6 +482,41 @@ class ActionRow(QWidget):
             wait_window_action="",  # retiré de l'UI
             start_hidden=self.start_hidden_check.isChecked() if t == "run" else False,
         )
+
+    def _update_cond_builder(self, index: int):
+        is_monitor_mode = index == 2
+        self.cond_builder_name.setEnabled(not is_monitor_mode)
+        self.cond_builder_monitors.setEnabled(is_monitor_mode)
+        self.cond_builder_op.setEnabled(is_monitor_mode)
+
+    def _on_cond_builder_add(self):
+        index = self.cond_builder_type.currentIndex()
+        text = ""
+        if index == 0:
+            name = self.cond_builder_name.text().strip()
+            if not name:
+                return
+            text = f"device_present:{name}"
+        elif index == 1:
+            name = self.cond_builder_name.text().strip()
+            if not name:
+                return
+            text = f"device_absent:{name}"
+        else:
+            n = self.cond_builder_monitors.value()
+            op_txt = self.cond_builder_op.currentText()
+            op_map = {"≥": ">=", "==": "==", "≤": "<=", ">": ">", "<": "<"}
+            text = f"monitors{op_map.get(op_txt, '>=')}{n}"
+        current = self.cond_edit.text().strip()
+        separator = " && " if current else ""
+        self.cond_edit.setText(f"{current}{separator}{text}")
+        self.cond_edit.setFocus()
+        self.cond_edit.setCursorPosition(len(self.cond_edit.text()))
+        self._update_cond_summary()
+
+    def _update_cond_summary(self):
+        t = self.cond_edit.text().strip()
+        self.cond_summary.setText(t if t else "Aucune condition")
 
 
 # ---------------------------------------------------------------------------
@@ -767,8 +860,8 @@ class DeviceWizard(QDialog):
         cond_info.setWordWrap(True)
         cond_layout.addWidget(cond_info)
 
-        cond_row = QHBoxLayout()
-        cond_row.setSpacing(6)
+        cond_edit_row = QHBoxLayout()
+        cond_edit_row.setSpacing(6)
 
         self.exec_cond_edit = QLineEdit()
         self.exec_cond_edit.setPlaceholderText("device_present:Nom  &&  device_absent:Autre")
@@ -777,7 +870,43 @@ class DeviceWizard(QDialog):
             "  device_present:Nom  ->  ce périphérique DOIT être connecté\n"
             "  device_absent:Nom   ->  ce périphérique NE DOIT PAS être connecté"
         )
-        cond_row.addWidget(self.exec_cond_edit, stretch=1)
+        cond_edit_row.addWidget(self.exec_cond_edit, stretch=1)
+        cond_layout.addLayout(cond_edit_row)
+
+        builder_row = QHBoxLayout()
+        builder_row.setSpacing(6)
+
+        self.exec_builder_type = QComboBox()
+        self.exec_builder_type.addItems(["Périphérique présent", "Périphérique absent", "Moniteurs ≥"])
+        self.exec_builder_type.setFixedWidth(150)
+        builder_row.addWidget(self.exec_builder_type)
+
+        self.exec_builder_name = QLineEdit()
+        self.exec_builder_name.setPlaceholderText("Nom du périphérique")
+        builder_row.addWidget(self.exec_builder_name)
+
+        self.exec_builder_monitors = QSpinBox()
+        self.exec_builder_monitors.setRange(1, 8)
+        self.exec_builder_monitors.setValue(2)
+        self.exec_builder_monitors.setFixedWidth(60)
+        builder_row.addWidget(self.exec_builder_monitors)
+
+        self.exec_builder_op = QComboBox()
+        self.exec_builder_op.addItems(["≥", "==", "≤", ">", "<"])
+        self.exec_builder_op.setFixedWidth(60)
+        builder_row.addWidget(self.exec_builder_op)
+
+        builder_add_btn = QPushButton("Ajouter")
+        builder_add_btn.setFixedHeight(24)
+        builder_add_btn.setToolTip("Ajouter la condition construite à la liste")
+        builder_add_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #2a2a3e; border: 1px solid #3a3a5a; border-radius: 4px; padding: 0 10px; }"
+            "QPushButton:hover { background: #3a3a5a; border-color: #5050aa; }"
+        )
+        builder_add_btn.clicked.connect(self._on_exec_builder_add)
+        builder_row.addWidget(builder_add_btn)
+
+        builder_row.addStretch()
 
         add_present_btn = QPushButton("+ présent")
         add_present_btn.setFixedHeight(24)
@@ -787,7 +916,7 @@ class DeviceWizard(QDialog):
             "QPushButton:hover { background: #1a3a1a; border-color: #55aa55; }"
         )
         add_present_btn.clicked.connect(lambda: self._append_exec_condition("device_present:"))
-        cond_row.addWidget(add_present_btn)
+        builder_row.addWidget(add_present_btn)
 
         add_absent_btn = QPushButton("+ absent")
         add_absent_btn.setFixedHeight(24)
@@ -797,9 +926,34 @@ class DeviceWizard(QDialog):
             "QPushButton:hover { background: #3a1a1a; border-color: #aa5555; }"
         )
         add_absent_btn.clicked.connect(lambda: self._append_exec_condition("device_absent:"))
-        cond_row.addWidget(add_absent_btn)
+        builder_row.addWidget(add_absent_btn)
 
-        cond_layout.addLayout(cond_row)
+        add_monitors_btn = QPushButton("+ ≥2 écrans")
+        add_monitors_btn.setFixedHeight(24)
+        add_monitors_btn.setToolTip("Ajouter : si au moins 2 écrans sont connectés")
+        add_monitors_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #1a1a2a; border: 1px solid #334466; border-radius: 4px; padding: 0 6px; }"
+            "QPushButton:hover { background: #1a1a3a; border-color: #5566aa; }"
+        )
+        add_monitors_btn.clicked.connect(lambda: self._append_exec_condition("monitors>=2"))
+        builder_row.addWidget(add_monitors_btn)
+
+        cond_layout.addLayout(builder_row)
+
+        cond_summary_row = QHBoxLayout()
+        cond_summary_row.setSpacing(6)
+        self.exec_cond_summary = QLabel()
+        self.exec_cond_summary.setStyleSheet("color: #8888aa; font-size: 9px;")
+        cond_summary_row.addWidget(self.exec_cond_summary, stretch=1)
+        clear_exec_btn = QPushButton("Effacer")
+        clear_exec_btn.setFixedHeight(24)
+        clear_exec_btn.clicked.connect(lambda: self.exec_cond_edit.clear())
+        cond_summary_row.addWidget(clear_exec_btn)
+        cond_layout.addLayout(cond_summary_row)
+        self.exec_builder_type.currentIndexChanged.connect(self._update_exec_builder)
+        self._update_exec_builder(self.exec_builder_type.currentIndex())
+        self.exec_cond_edit.textChanged.connect(self._update_exec_cond_summary)
+        self._update_exec_cond_summary()
         layout.addWidget(cond_group)
 
         layout.addStretch()
@@ -823,6 +977,41 @@ class DeviceWizard(QDialog):
         self.exec_cond_edit.setText(f"{current}{separator}{prefix}")
         self.exec_cond_edit.setFocus()
         self.exec_cond_edit.setCursorPosition(len(self.exec_cond_edit.text()))
+
+    def _update_exec_builder(self, index: int):
+        is_monitor_mode = index == 2
+        self.exec_builder_name.setEnabled(not is_monitor_mode)
+        self.exec_builder_monitors.setEnabled(is_monitor_mode)
+        self.exec_builder_op.setEnabled(is_monitor_mode)
+
+    def _on_exec_builder_add(self):
+        index = self.exec_builder_type.currentIndex()
+        text = ""
+        if index == 0:
+            name = self.exec_builder_name.text().strip()
+            if not name:
+                return
+            text = f"device_present:{name}"
+        elif index == 1:
+            name = self.exec_builder_name.text().strip()
+            if not name:
+                return
+            text = f"device_absent:{name}"
+        else:
+            n = self.exec_builder_monitors.value()
+            op_txt = self.exec_builder_op.currentText()
+            op_map = {"≥": ">=", "==": "==", "≤": "<=", ">": ">", "<": "<"}
+            text = f"monitors{op_map.get(op_txt, '>=')}{n}"
+        current = self.exec_cond_edit.text().strip()
+        separator = " && " if current else ""
+        self.exec_cond_edit.setText(f"{current}{separator}{text}")
+        self.exec_cond_edit.setFocus()
+        self.exec_cond_edit.setCursorPosition(len(self.exec_cond_edit.text()))
+        self._update_exec_cond_summary()
+
+    def _update_exec_cond_summary(self):
+        t = self.exec_cond_edit.text().strip()
+        self.exec_cond_summary.setText(t if t else "Aucune condition")
 
     def _start_scan(self):
         self.scan_btn.setEnabled(False)

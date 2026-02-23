@@ -233,6 +233,14 @@ def get_device_type(device_id: str, name: str) -> str:
     return "usb"
 
 
+def get_monitor_count() -> int:
+    try:
+        import ctypes
+        return int(ctypes.windll.user32.GetSystemMetrics(80))
+    except Exception:
+        return 0
+
+
 def is_internal_device(device_id: str, name: str) -> bool:
     """Retourne True si le périphérique est probablement interne/système."""
     uid = device_id.upper()
@@ -522,11 +530,17 @@ class Engine:
         self.on_device_changed: Optional[Callable] = None   # (device) -> None
         self.on_confirm_needed: Optional[Callable] = None   # (device) -> bool  [DOIT être thread-safe]
         self.on_notify: Optional[Callable] = None           # (title, text) -> None
+        self.monitor_count: int = 0
 
     def scan_and_update(self, first_run: bool = False):
+        self.monitor_count = get_monitor_count()
+        log.info(f"Moniteurs actifs détectés: {self.monitor_count}")
         raw = scan_devices()
         for device in self.config.devices:
             device.connected = device.is_present(raw)
+        for device in self.config.devices:
+            if device.connected and device.execution_condition and not self._check_condition(device.execution_condition):
+                device.connected = False
 
         if first_run:
             for device in self.config.devices:
@@ -593,6 +607,23 @@ class Engine:
     def _check_single_condition(self, condition: str) -> bool:
         if not condition:
             return True
+        m = re.match(r"monitors\s*(==|>=|<=|>|<)\s*(\d+)", condition)
+        if m:
+            op, val = m.group(1), int(m.group(2))
+            count = self.monitor_count
+            result = False
+            if op == "==":
+                result = count == val
+            elif op == ">=":
+                result = count >= val
+            elif op == "<=":
+                result = count <= val
+            elif op == ">":
+                result = count > val
+            elif op == "<":
+                result = count < val
+            log.info(f"Condition monitors '{condition}' évaluée avec {count} écrans -> {result}")
+            return result
         m = re.match(r"device_(absent|present):(.+)", condition)
         if m:
             mode, name = m.group(1), m.group(2).strip()
@@ -602,13 +633,15 @@ class Engine:
                 return True
             return (not dev.connected) if mode == "absent" else dev.connected
         log.warning(f"Condition non reconnue : '{condition}'")
-        return True
+        return False
 
     def _execute_actions(self, device: Device, actions: list[Action]):
         """Exécute les actions dans un thread dédié — ne bloque JAMAIS le ScanWorker."""
         if device.execution_condition and not self._check_condition(device.execution_condition):
             log.info(f"Condition d'exécution non remplie pour {device.name}, actions annulées")
             return
+        if device.execution_condition:
+            log.info(f"Conditions d'exécution remplies pour {device.name}: '{device.execution_condition}'")
         for action in actions:
             if not self._check_condition(action.condition):
                 continue

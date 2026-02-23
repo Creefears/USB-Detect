@@ -15,6 +15,7 @@
       "id": "VID_1B1C&PID_1BA4&MI",
       "match_type": "contains",
       "confirm_on_disconnect": false,
+      "execution_condition": "",
       "on_connect": [
         {
           "type": "run",
@@ -36,6 +37,7 @@
       "id": "Razer Tartarus",
       "match_type": "contains",
       "confirm_on_disconnect": false,
+      "execution_condition": "",
       "on_connect": [
         {
           "type": "run",
@@ -70,6 +72,7 @@
       "id": "VID_046D&PID_0AB7&MI",
       "match_type": "contains",
       "confirm_on_disconnect": false,
+      "execution_condition": "",
       "on_connect": [
         {
           "type": "run",
@@ -126,15 +129,15 @@
     },
     {
       "name": "Two Monitor",
-      "id": "DISPLAY\\BLD0101\\5&36546074&0&UID4354",
+      "id": "DISPLAY\\BLD",
       "match_type": "contains",
       "confirm_on_disconnect": false,
+      "execution_condition": "monitors>=2",
       "on_connect": [
         {
-          "type": "run",
+          "type": "command",
           "process": "Two_Monitor_Exe.bat",
-          "path": "C:\\Users\\Shadow\\Documents\\DisplayChanger\\Two_Monitor_Exe.bat",
-          "condition": "device_present:Moniteur && device_present:Moniteur"
+          "path": "C:\\Users\\Shadow\\Documents\\DisplayChanger\\Two_Monitor_Exe.bat"
         }
       ],
       "on_disconnect": []
@@ -144,6 +147,7 @@
       "id": "USB\\VID_1532&PID_051A&MI_05\\7&2D16C9BF&2&0005",
       "match_type": "contains",
       "confirm_on_disconnect": false,
+      "execution_condition": "",
       "on_connect": [
         {
           "type": "run",

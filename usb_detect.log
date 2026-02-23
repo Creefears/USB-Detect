@@ -3200,3 +3200,213 @@
 2026-02-23 08:37:43 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4084, name='lghub_updater.exe')
 s "--start-minimized"
 2026-02-23 08:37:43 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 11:36:09 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4232, name='lghub_updater.exe')
+2026-02-23 11:36:09 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 11:36:38 [INFO]  Configuration sauvegardée.
+2026-02-23 11:36:38 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 11:36:40 [INFO]  Connecté : Two Monitor
+2026-02-23 11:36:40 [INFO]  Condition d'exécution non remplie pour Two Monitor, actions annulées
+2026-02-23 11:37:15 [INFO]  Configuration sauvegardée.
+2026-02-23 11:37:15 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 11:39:13 [INFO]  Condition d'exécution non remplie pour Two Monitor, actions annulées
+2026-02-23 11:39:13 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4232, name='lghub_updater.exe')
+2026-02-23 11:39:13 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 11:39:45 [INFO]  Configuration sauvegardée.
+2026-02-23 11:39:45 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 11:42:09 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 11:42:09 [INFO]  Condition d'exécution non remplie pour Two Monitor, actions annulées
+2026-02-23 11:42:09 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4232, name='lghub_updater.exe')
+2026-02-23 11:42:09 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 11:43:42 [INFO]  Configuration sauvegardée.
+2026-02-23 11:43:42 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 11:44:05 [INFO]  Configuration sauvegardée.
+2026-02-23 11:44:05 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 11:45:44 [INFO]  Configuration sauvegardée.
+2026-02-23 11:45:44 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 11:47:56 [INFO]  Configuration sauvegardée.
+2026-02-23 11:47:56 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 12:40:41 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:40:44 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:40:44 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4188, name='lghub_updater.exe')
+2026-02-23 12:40:44 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:40:44 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 12:40:44 [INFO]  Condition d'exécution non remplie pour Two Monitor, actions annulées
+2026-02-23 12:40:49 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:40:50 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:40:55 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:40:56 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:41:01 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:41:04 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:41:09 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:41:11 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:41:16 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:41:19 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:41:24 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:41:26 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:41:31 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:41:34 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:41:34 [INFO]  Connecté : Two Monitor
+2026-02-23 12:41:34 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:41:34 [INFO]  Conditions d'exécution remplies pour Two Monitor: 'monitors>=2'
+2026-02-23 12:41:39 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:41:41 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:41:46 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:41:47 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:41:52 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:41:53 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:41:58 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:00 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:05 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:07 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:12 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:13 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:18 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:20 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:25 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:26 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:31 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:32 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:37 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:39 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:44 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:45 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:50 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:52 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:42:57 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:42:58 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:03 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:05 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:10 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:11 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:16 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:18 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:23 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:24 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:29 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:31 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:36 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:37 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:42 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:44 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:49 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:50 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:57 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:43:59 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:59 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:43:59 [INFO]  Conditions d'exécution remplies pour Two Monitor: 'monitors>=2'
+2026-02-23 12:43:59 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4188, name='lghub_updater.exe')
+2026-02-23 12:43:59 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 12:44:04 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:05 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:10 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:12 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:17 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:18 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:23 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:25 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:30 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:31 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:36 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:38 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:43 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:44 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:49 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:51 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:44:56 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:44:58 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:03 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:04 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:09 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:11 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:16 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:17 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:22 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:24 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:29 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:30 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:35 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:36 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:41 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:43 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:48 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:49 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:45:54 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:45:56 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:01 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:02 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:07 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:09 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:14 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:15 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:20 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:22 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:27 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:28 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:33 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:35 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:40 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:41 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:46 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:47 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:52 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:46:54 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:46:59 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:00 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:05 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:07 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:12 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:13 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:18 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:19 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:24 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:26 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:31 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:32 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:37 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:39 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:47 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:49 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:49 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:47:49 [INFO]  Conditions d'exécution remplies pour Two Monitor: 'monitors>=2'
+2026-02-23 12:47:49 [ERROR]  Erreur fermeture lghub_updater.exe : (pid=4188, name='lghub_updater.exe')
+2026-02-23 12:47:49 [INFO]  Fermé : lghub_updater.exe
+2026-02-23 12:47:54 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:47:55 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:00 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:02 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:07 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:08 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:13 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:14 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:19 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:21 [INFO]  Configuration sauvegardée.
+2026-02-23 12:48:21 [INFO]  Périphérique modifié : Two Monitor
+2026-02-23 12:48:21 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:26 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:48:29 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:48:29 [INFO]  Déconnecté : Two Monitor
+2026-02-23 12:48:29 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:48:29 [INFO]  Condition d'exécution non remplie pour Two Monitor, actions annulées
+2026-02-23 12:48:34 [INFO]  Moniteurs actifs détectés: 1
+2026-02-23 12:48:39 [INFO]  Condition monitors 'monitors>=2' évaluée avec 1 écrans -> False
+2026-02-23 12:48:44 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:45 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:45 [INFO]  Connecté : Two Monitor
+2026-02-23 12:48:45 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:45 [INFO]  Conditions d'exécution remplies pour Two Monitor: 'monitors>=2'
+2026-02-23 12:48:50 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:52 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:48:57 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:48:58 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:49:03 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:49:05 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:49:10 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:49:11 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:49:16 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:49:18 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:49:23 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:49:24 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:49:29 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:49:31 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
+2026-02-23 12:49:36 [INFO]  Moniteurs actifs détectés: 2
+2026-02-23 12:49:37 [INFO]  Condition monitors 'monitors>=2' évaluée avec 2 écrans -> True
