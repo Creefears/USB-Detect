@@ -4,12 +4,270 @@
     "notifications_enabled": true,
     "notification_duration": 4,
     "taskbar_setting": 0,
-    "display_switch_command": "",
-    "display_switch_workdir": "",
+    "display_switch_command": "dc2.exe -configure=Two_Monitor",
+    "display_switch_workdir": "C:\\Users\\Shadow\\Documents\\DisplayChanger",
     "start_minimized": true,
     "start_with_windows": false,
     "start_in_tray": true,
     "hidden_scan_ids": []
   },
-  "devices": []
+  "devices": [
+    {
+      "name": "Clavier Corsaire",
+      "id": "VID_1B1C&PID_1BA4&MI",
+      "match_type": "contains",
+      "confirm_on_disconnect": false,
+      "execution_condition": "",
+      "enabled": true,
+      "on_connect": [
+        {
+          "type": "run",
+          "process": "SignalRgbLauncher.exe",
+          "path": "C:\\Users\\Shadow\\AppData\\Local\\VortxEngine\\app-2.5.46\\Signal-x64\\SignalRgb.exe",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": true,
+          "args": ""
+        }
+      ],
+      "on_disconnect": [
+        {
+          "type": "close",
+          "process": "SignalRgb.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        }
+      ]
+    },
+    {
+      "name": "Razer Tartarus",
+      "id": "Razer Tartarus",
+      "match_type": "contains",
+      "confirm_on_disconnect": false,
+      "execution_condition": "",
+      "enabled": true,
+      "on_connect": [
+        {
+          "type": "run",
+          "process": "RzSynapse.exe",
+          "path": "C:\\Program Files (x86)\\Razer\\Synapse\\RzSynapse.exe",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": true,
+          "args": "--minimized"
+        },
+        {
+          "type": "run",
+          "process": "SuperDisplay.exe",
+          "path": "C:\\Program Files\\SuperDisplay\\SuperDisplay.exe",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": true,
+          "args": "--minimized"
+        }
+      ],
+      "on_disconnect": [
+        {
+          "type": "close",
+          "process": "RzSynapse.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        },
+        {
+          "type": "close",
+          "process": "SuperDisplay.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        }
+      ]
+    },
+    {
+      "name": "Micro Logitech",
+      "id": "VID_046D&PID_0AB7&MI",
+      "match_type": "contains",
+      "confirm_on_disconnect": false,
+      "execution_condition": "",
+      "enabled": true,
+      "on_connect": [
+        {
+          "type": "run",
+          "process": "Update.exe",
+          "path": "C:\\Users\\Shadow\\AppData\\Local\\Discord\\Update.exe",
+          "condition": "",
+          "post_sleep": 0.5,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": true,
+          "args": "--processStart Discord.exe --process-start-args \"--start-minimized\""
+        },
+        {
+          "type": "run",
+          "process": "lghub_system_tray.exe",
+          "path": "C:\\Program Files\\LGHUB\\system_tray\\lghub_system_tray.exe",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": "--minimized"
+        },
+        {
+          "type": "run",
+          "process": "Mixline.exe",
+          "path": "C:\\Users\\Shadow\\AppData\\Local\\Logi\\MIXLINE\\MIXLINE\\MIXLINE.exe",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        }
+      ],
+      "on_disconnect": [
+        {
+          "type": "close",
+          "process": "Discord.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        },
+        {
+          "type": "close",
+          "process": "lghub_system_tray.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        },
+        {
+          "type": "close",
+          "process": "lghub_agent.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        },
+        {
+          "type": "close",
+          "process": "lghub.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        },
+        {
+          "type": "close",
+          "process": "MIXLINE.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        },
+        {
+          "type": "close",
+          "process": "lghub_updater.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        }
+      ]
+    },
+    {
+      "name": "Two Monitor",
+      "id": "DISPLAY\\BLD",
+      "match_type": "contains",
+      "confirm_on_disconnect": false,
+      "execution_condition": "monitors>=2",
+      "enabled": true,
+      "on_connect": [
+        {
+          "type": "command",
+          "process": "Two_Monitor_Exe.bat",
+          "path": "C:\\Users\\Shadow\\Documents\\DisplayChanger\\Two_Monitor_Exe.bat",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        }
+      ],
+      "on_disconnect": []
+    },
+    {
+      "name": "Casque - Nari Ultimate",
+      "id": "USB\\VID_1532&PID_051A&MI_05\\7&2D16C9BF&2&0005",
+      "match_type": "contains",
+      "confirm_on_disconnect": false,
+      "execution_condition": "",
+      "enabled": true,
+      "on_connect": [
+        {
+          "type": "run",
+          "process": "RazerAppEngine.exe",
+          "path": "C:\\Program Files\\Razer\\RazerAppEngine\\RazerAppEngine.exe",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": "--minimized --silent --start-minimized --url-params=apps=synapse"
+        }
+      ],
+      "on_disconnect": [
+        {
+          "type": "close",
+          "process": "RazerAppEngine.exe",
+          "path": "",
+          "condition": "",
+          "post_sleep": 0,
+          "wait_window": "",
+          "wait_window_action": "",
+          "start_hidden": false,
+          "args": ""
+        }
+      ]
+    }
+  ]
 }

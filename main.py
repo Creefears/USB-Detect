@@ -464,10 +464,32 @@ class SettingsDialog(QDialog):
         self.chk_log.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
         layout.addWidget(self.chk_log)
 
-        # --- Version ---
+        # --- Mises à jour ---
+        grp_update = QLabel("Mises à jour")
+        grp_update.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
+        layout.addWidget(grp_update)
+
+        update_row = QHBoxLayout()
+        update_row.setSpacing(8)
         ver_lbl = QLabel(f"Version : v{APP_VERSION}")
-        ver_lbl.setStyleSheet("color: #555577; font-size: 8pt; margin-top: 10px;")
-        layout.addWidget(ver_lbl)
+        ver_lbl.setStyleSheet("color: #a0a0c0; font-size: 9pt;")
+        update_row.addWidget(ver_lbl)
+        update_row.addStretch()
+
+        self.update_status_lbl = QLabel("")
+        self.update_status_lbl.setStyleSheet("color: #66cc88; font-size: 9pt;")
+        update_row.addWidget(self.update_status_lbl)
+
+        self.check_update_btn = QPushButton("Vérifier les mises à jour")
+        self.check_update_btn.setStyleSheet(
+            "QPushButton { background: #2a2a4a; border: 1px solid #44447a; border-radius: 4px; "
+            "color: #a0a0e0; padding: 4px 12px; font-size: 9pt; }"
+            "QPushButton:hover { background: #3a3a5a; }"
+            "QPushButton:disabled { color: #555577; }"
+        )
+        self.check_update_btn.clicked.connect(self._check_update)
+        update_row.addWidget(self.check_update_btn)
+        layout.addLayout(update_row)
 
         layout.addStretch()
 
@@ -486,6 +508,28 @@ class SettingsDialog(QDialog):
         btn_row.addWidget(cancel_btn)
         btn_row.addWidget(save_btn)
         layout.addLayout(btn_row)
+
+    def _check_update(self):
+        """Vérifie manuellement les mises à jour depuis GitHub."""
+        self.check_update_btn.setEnabled(False)
+        self.update_status_lbl.setText("Vérification…")
+        self.update_status_lbl.setStyleSheet("color: #8888cc; font-size: 9pt;")
+
+        def _on_result(version, url):
+            # Appelé depuis un thread — on schedule dans l'event loop Qt
+            if version:
+                self.update_status_lbl.setText(f"v{version} disponible !")
+                self.update_status_lbl.setStyleSheet("color: #66cc88; font-size: 9pt;")
+                # Afficher aussi la bannière dans la fenêtre principale
+                parent = self.parent()
+                if parent and hasattr(parent, "update_available"):
+                    parent.update_available.emit(version, url)
+            else:
+                self.update_status_lbl.setText("Vous êtes à jour.")
+                self.update_status_lbl.setStyleSheet("color: #66cc88; font-size: 9pt;")
+            self.check_update_btn.setEnabled(True)
+
+        check_for_update(_on_result)
 
     def _save(self):
         self.config.start_with_windows = self.chk_startup.isChecked()
