@@ -16,17 +16,49 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Callable, Optional
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 GITHUB_REPO = "Creefears/USB-Detect"
+APP_NAME = "USB Detect"
+INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
+
+# ---------------------------------------------------------------------------
+# Changelog (affiché au premier lancement d'une nouvelle version)
+# ---------------------------------------------------------------------------
+CHANGELOG = {
+    "2.2.0": [
+        "Installation automatique dans Program Files au premier lancement",
+        "Mise à jour intelligente : détecte et propose l'update si version plus récente",
+        "Nettoyage automatique du registre en cas de désinstallation manuelle",
+        "Les données (config, logs) sont stockées dans %APPDATA% (plus de problèmes de permissions)",
+        "Fenêtre 'Quoi de neuf' affichée après chaque mise à jour",
+    ],
+    "2.1.0": [
+        "Détection USB, HID et moniteurs en temps réel",
+        "Actions automatiques configurables (lancer/fermer des apps)",
+        "Démarrage avec Windows et mode system tray",
+        "Vérification automatique des mises à jour GitHub",
+        "Conditions d'exécution (nombre de moniteurs, présence d'autres périphériques)",
+    ],
+}
 
 # ---------------------------------------------------------------------------
 # Chemins
 # ---------------------------------------------------------------------------
-BASE_DIR    = Path(__file__).parent
-CONFIG_PATH = BASE_DIR / "config.json"
-CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
-LOG_PATH    = BASE_DIR / "usb_detect.log"
-ICON_PATH   = BASE_DIR / "icon.png"
+# EXE_DIR : dossier de l'exécutable (pour l'icône et les fichiers embarqués)
+# DATA_DIR : dossier de données (config, log, lock) — %APPDATA% en prod
+if getattr(sys, "frozen", False):
+    EXE_DIR = Path(sys.executable).parent
+    DATA_DIR = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+else:
+    EXE_DIR = Path(__file__).parent
+    DATA_DIR = EXE_DIR  # Mode dev → tout dans le dossier du projet
+
+BASE_DIR = DATA_DIR  # Rétro-compatibilité (lock, etc.)
+CONFIG_PATH = DATA_DIR / "config.json"
+CONFIG_EXAMPLE_PATH = EXE_DIR / "config.example.json"  # Embarqué à côté de l'exe
+LOG_PATH    = DATA_DIR / "usb_detect.log"
+ICON_PATH   = EXE_DIR / "icon.png"
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -791,8 +823,8 @@ def is_startup_enabled() -> bool:
 def check_for_update(callback: Optional[Callable] = None):
     """Vérifie si une nouvelle version est disponible sur GitHub.
 
-    Appelle callback(latest_version, download_url) si une mise à jour est dispo,
-    ou callback(None, None) sinon. Exécuté dans un thread pour ne pas bloquer l'UI.
+    Appelle callback(latest_version, download_url, asset_url) si une mise à jour
+    est dispo, ou callback(None, None, None) sinon.
     """
     def _check():
         try:
@@ -803,17 +835,340 @@ def check_for_update(callback: Optional[Callable] = None):
                 data = json.loads(resp.read().decode("utf-8"))
             tag = data.get("tag_name", "").lstrip("vV")
             html_url = data.get("html_url", "")
+            # Chercher l'asset .exe dans la release
+            asset_url = ""
+            for asset in data.get("assets", []):
+                if asset.get("name", "").lower().endswith(".exe"):
+                    asset_url = asset.get("browser_download_url", "")
+                    break
             if tag and tag != APP_VERSION:
                 log.info(f"Mise à jour disponible : v{tag} (actuel: v{APP_VERSION})")
                 if callback:
-                    callback(tag, html_url)
+                    callback(tag, html_url, asset_url)
             else:
                 log.info(f"Aucune mise à jour (v{APP_VERSION} est à jour).")
                 if callback:
-                    callback(None, None)
+                    callback(None, None, None)
         except Exception as e:
             log.warning(f"Impossible de vérifier les mises à jour : {e}")
             if callback:
-                callback(None, None)
+                callback(None, None, None)
 
     threading.Thread(target=_check, daemon=True).start()
+
+
+def download_and_apply_update(asset_url: str, progress_callback: Optional[Callable] = None,
+                              done_callback: Optional[Callable] = None):
+    """Télécharge le .exe depuis GitHub et remplace l'exécutable actuel.
+
+    - progress_callback(percent: int, status: str) pour la progression
+    - done_callback(success: bool, error: str) quand c'est terminé
+    """
+    def _download():
+        import urllib.request
+        import tempfile
+        import shutil
+
+        try:
+            if progress_callback:
+                progress_callback(0, "Connexion au serveur…")
+
+            req = urllib.request.Request(asset_url)
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                total = int(resp.headers.get("Content-Length", 0))
+                downloaded = 0
+                chunk_size = 65536
+
+                # Télécharger dans un fichier temporaire
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".exe",
+                                                  dir=str(DATA_DIR))
+                tmp_path = tmp.name
+                try:
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        tmp.write(chunk)
+                        downloaded += len(chunk)
+                        if total > 0 and progress_callback:
+                            pct = int(downloaded * 100 / total)
+                            mb = downloaded / (1024 * 1024)
+                            total_mb = total / (1024 * 1024)
+                            progress_callback(pct, f"{mb:.1f} / {total_mb:.1f} Mo")
+                finally:
+                    tmp.close()
+
+            if progress_callback:
+                progress_callback(100, "Téléchargement terminé, installation…")
+
+            # Déterminer le chemin de l'exe actuel
+            if getattr(sys, "frozen", False):
+                current_exe = sys.executable
+            else:
+                # Mode dev : on place le .exe à côté dans dist/
+                dist_dir = EXE_DIR / "dist"
+                dist_dir.mkdir(exist_ok=True)
+                current_exe = str(dist_dir / "USB Detect.exe")
+
+            # Créer un script batch qui remplace l'exe après fermeture
+            bat_path = str(DATA_DIR / "_update.bat")
+            with open(bat_path, "w", encoding="utf-8") as bat:
+                bat.write("@echo off\n")
+                bat.write("echo Mise a jour de USB Detect...\n")
+                bat.write("timeout /t 2 /nobreak >nul\n")
+                bat.write(f'copy /y "{tmp_path}" "{current_exe}"\n')
+                bat.write(f'del "{tmp_path}"\n')
+                bat.write(f'start "" "{current_exe}"\n')
+                bat.write(f'del "%~f0"\n')
+
+            log.info(f"Mise à jour téléchargée : {tmp_path} → {current_exe}")
+
+            if done_callback:
+                done_callback(True, bat_path)
+
+        except Exception as e:
+            log.error(f"Erreur de téléchargement : {e}")
+            if done_callback:
+                done_callback(False, str(e))
+
+    threading.Thread(target=_download, daemon=True).start()
+
+
+# ---------------------------------------------------------------------------
+# Auto-installation dans Program Files
+# ---------------------------------------------------------------------------
+def _parse_version(v: str) -> tuple:
+    """Transforme '2.1.0' en (2, 1, 0) pour comparaison."""
+    try:
+        return tuple(int(x) for x in v.strip().lstrip("vV").split("."))
+    except Exception:
+        return (0, 0, 0)
+
+
+def is_installed() -> bool:
+    """Vérifie si l'exe tourne depuis le dossier d'installation."""
+    if not getattr(sys, "frozen", False):
+        return True  # Mode dev → pas d'install
+    try:
+        exe_dir = Path(sys.executable).resolve().parent
+        target = INSTALL_DIR.resolve()
+        return exe_dir == target
+    except Exception:
+        return False
+
+
+def get_installed_version() -> Optional[str]:
+    """Lit la version installée dans le registre. Retourne None si pas installé."""
+    try:
+        import winreg as _wr
+        with _wr.OpenKey(_wr.HKEY_LOCAL_MACHINE,
+                         r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect",
+                         0, _wr.KEY_READ) as key:
+            val, _ = _wr.QueryValueEx(key, "DisplayVersion")
+            return val
+    except Exception:
+        return None
+
+
+def _cleanup_orphaned_registry():
+    """Nettoie les entrées registre orphelines (fichiers supprimés manuellement)."""
+    try:
+        import winreg as _wr
+        _wr.DeleteKey(_wr.HKEY_LOCAL_MACHINE,
+                      r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect")
+        log.info("Entrée registre orpheline nettoyée (Ajout/Suppression).")
+    except Exception:
+        pass
+    try:
+        import winreg as _wr
+        with _wr.OpenKey(_wr.HKEY_CURRENT_USER,
+                         r"Software\Microsoft\Windows\CurrentVersion\Run",
+                         0, _wr.KEY_SET_VALUE) as k:
+            _wr.DeleteValue(k, "USBDetect")
+        log.info("Entrée registre orpheline nettoyée (démarrage auto).")
+    except Exception:
+        pass
+
+
+def check_install_status() -> str:
+    """Détermine l'action à effectuer au lancement.
+
+    Retourne :
+      'run'     — lancé depuis Program Files, lancer normalement
+      'install' — première installation (ou réinstallation après suppression)
+      'update'  — version plus récente que celle installée
+      'older'   — version plus ancienne que celle installée
+      'same'    — même version déjà installée dans Program Files
+    """
+    if not getattr(sys, "frozen", False):
+        return "run"  # Mode dev
+    if is_installed():
+        return "run"  # Lancé depuis Program Files
+
+    # --- Pas dans Program Files → vérifier l'état de l'installation ---
+    installed_ver = get_installed_version()
+    dest_exe = INSTALL_DIR / "USB Detect.exe"
+    exe_exists = dest_exe.exists()
+
+    # Cas 1 : registre orphelin (entrées existent mais exe supprimé)
+    if installed_ver is not None and not exe_exists:
+        _cleanup_orphaned_registry()
+        return "install"  # Réinstallation propre
+
+    # Cas 2 : aucune trace d'installation
+    if installed_ver is None and not exe_exists:
+        return "install"
+
+    # Cas 3 : exe existe mais pas de registre (install partielle)
+    if installed_ver is None and exe_exists:
+        return "install"  # Réinstaller proprement
+
+    # Cas 4 : tout existe → comparer les versions
+    current = _parse_version(APP_VERSION)
+    installed = _parse_version(installed_ver)
+    if current > installed:
+        return "update"
+    elif current < installed:
+        return "older"
+    else:
+        return "same"
+
+
+def self_install(is_update: bool = False) -> Optional[str]:
+    """Copie l'exe dans Program Files et configure Windows.
+
+    Si is_update=True, remplace l'exe existant sans toucher à la config.
+    Retourne le chemin de l'exe installé, ou None en cas d'échec.
+    Doit être appelé avec les droits admin.
+    """
+    import shutil
+
+    current_exe = Path(sys.executable).resolve()
+
+    # Créer le dossier d'installation
+    INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+
+    dest_exe = INSTALL_DIR / "USB Detect.exe"
+
+    # Copier l'exe (remplace s'il existe déjà)
+    shutil.copy2(str(current_exe), str(dest_exe))
+
+    # Extraire config.example.json si embarqué par PyInstaller
+    internal_data = getattr(sys, "_MEIPASS", None)
+    if internal_data:
+        example_src = Path(internal_data) / "config.example.json"
+        if example_src.exists():
+            dest_example = INSTALL_DIR / "config.example.json"
+            # Toujours mettre à jour l'exemple
+            shutil.copy2(str(example_src), str(dest_example))
+
+    # Raccourci dans le menu Démarrer (créer ou mettre à jour)
+    _create_start_menu_shortcut(str(dest_exe))
+
+    # Enregistrement dans Ajout/Suppression de programmes (met à jour la version)
+    _register_uninstall(str(dest_exe))
+
+    return str(dest_exe)
+
+
+def self_uninstall():
+    """Supprime l'installation (appelé via l'app ou la ligne de commande)."""
+    import shutil
+    import winreg as _wr
+
+    # Sauvegarder config sur le bureau (depuis AppData)
+    appdata_dir = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+    config_path = appdata_dir / "config.json"
+    if config_path.exists():
+        backup = Path.home() / "Desktop" / "usb_detect_config_backup.json"
+        shutil.copy2(str(config_path), str(backup))
+        log.info(f"Config sauvegardée : {backup}")
+
+    # Supprimer le dossier AppData
+    if appdata_dir.exists():
+        shutil.rmtree(str(appdata_dir), ignore_errors=True)
+
+    # Raccourci menu Démarrer
+    start_menu = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / \
+        "Microsoft" / "Windows" / "Start Menu" / "Programs"
+    lnk = start_menu / "USB Detect.lnk"
+    if lnk.exists():
+        lnk.unlink()
+
+    # Registre : Ajout/Suppression
+    try:
+        _wr.DeleteKey(_wr.HKEY_LOCAL_MACHINE,
+                      r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect")
+    except FileNotFoundError:
+        pass
+
+    # Registre : démarrage auto
+    try:
+        with _wr.OpenKey(_wr.HKEY_CURRENT_USER,
+                         r"Software\Microsoft\Windows\CurrentVersion\Run",
+                         0, _wr.KEY_SET_VALUE) as k:
+            _wr.DeleteValue(k, "USBDetect")
+    except FileNotFoundError:
+        pass
+
+    # Créer un batch qui supprimera le dossier Program Files après fermeture
+    bat = INSTALL_DIR / "_cleanup.bat"
+    bat.write_text(
+        "@echo off\n"
+        "timeout /t 2 /nobreak >nul\n"
+        f'rmdir /s /q "{INSTALL_DIR}"\n'
+        'del "%~f0"\n',
+        encoding="utf-8"
+    )
+    subprocess.Popen(
+        ["cmd", "/c", str(bat)],
+        creationflags=0x08000000  # CREATE_NO_WINDOW
+    )
+
+
+def _create_start_menu_shortcut(exe_path: str):
+    """Crée un raccourci .lnk dans le menu Démarrer."""
+    start_menu = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / \
+        "Microsoft" / "Windows" / "Start Menu" / "Programs"
+    lnk = start_menu / "USB Detect.lnk"
+    ico = INSTALL_DIR / "usb_detect.ico"
+    ps_cmd = (
+        f'$ws = New-Object -ComObject WScript.Shell; '
+        f'$s = $ws.CreateShortcut("{lnk}"); '
+        f'$s.TargetPath = "{exe_path}"; '
+        f'$s.WorkingDirectory = "{INSTALL_DIR}"; '
+        f'$s.Description = "Surveillance USB en temps réel"; '
+    )
+    if ico.exists():
+        ps_cmd += f'$s.IconLocation = "{ico}"; '
+    ps_cmd += '$s.Save()'
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            check=True, creationflags=0x08000000
+        )
+    except Exception as e:
+        log.warning(f"Raccourci non créé : {e}")
+
+
+def _register_uninstall(exe_path: str):
+    """Enregistre le programme dans Ajout/Suppression de programmes."""
+    import winreg as _wr
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect"
+    try:
+        with _wr.CreateKey(_wr.HKEY_LOCAL_MACHINE, key_path) as key:
+            _wr.SetValueEx(key, "DisplayName", 0, _wr.REG_SZ, APP_NAME)
+            _wr.SetValueEx(key, "Publisher", 0, _wr.REG_SZ, "Creefears")
+            _wr.SetValueEx(key, "DisplayVersion", 0, _wr.REG_SZ, APP_VERSION)
+            _wr.SetValueEx(key, "InstallLocation", 0, _wr.REG_SZ, str(INSTALL_DIR))
+            ico = INSTALL_DIR / "usb_detect.ico"
+            if ico.exists():
+                _wr.SetValueEx(key, "DisplayIcon", 0, _wr.REG_SZ, str(ico))
+            _wr.SetValueEx(key, "UninstallString", 0, _wr.REG_SZ,
+                           f'"{exe_path}" --uninstall')
+            _wr.SetValueEx(key, "NoModify", 0, _wr.REG_DWORD, 1)
+            _wr.SetValueEx(key, "NoRepair", 0, _wr.REG_DWORD, 1)
+            exe_size = Path(exe_path).stat().st_size // 1024
+            _wr.SetValueEx(key, "EstimatedSize", 0, _wr.REG_DWORD, exe_size)
+    except PermissionError:
+        log.warning("Impossible d'enregistrer dans Ajout/Suppression (droits admin)")

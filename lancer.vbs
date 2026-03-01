@@ -21,9 +21,13 @@ Err.Clear
 
 ' Try common install locations
 arrPaths = Array( _
+    oShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python314\pythonw.exe", _
+    oShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python313\pythonw.exe", _
     oShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python312\pythonw.exe", _
     oShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python311\pythonw.exe", _
     oShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python310\pythonw.exe", _
+    "C:\Python314\pythonw.exe", _
+    "C:\Python313\pythonw.exe", _
     "C:\Python312\pythonw.exe", _
     "C:\Python311\pythonw.exe", _
     "C:\Python310\pythonw.exe" _

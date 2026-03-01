@@ -2,9 +2,19 @@
 
 > [!CAUTION]
 > ## IMPORTANT — AVERTISSEMENT
-> Ce logiciel a été conçu et généré exclusivement par une intelligence artificielle.
+> Ce logiciel a été **entièrement conçu avec l'aide d'une intelligence artificielle**.
 > Il est fourni **tel quel**, sans garantie de fonctionnement parfait, de sécurité ou d'adéquation à un usage en production.
 > Utilisez-le à vos propres risques et testez-le soigneusement avant tout déploiement.
+
+---
+
+## Pourquoi ce projet ?
+
+Ce projet est né d'un besoin personnel : **aucune alternative satisfaisante n'existait** pour automatiser des actions en fonction de la connexion/déconnexion de périphériques USB sous Windows.
+
+Pendant longtemps, j'ai utilisé un petit **script AutoHotkey** bricolé qui faisait le travail — mais de manière bancale et potentiellement dangereuse pour mon système. Pas d'interface, pas de gestion propre des processus, pas de mises à jour.
+
+N'ayant trouvé aucun logiciel répondant à ce besoin, j'ai décidé de créer **USB Detect** avec l'aide d'une IA. Le résultat est un outil propre, fiable et configurable qui remplace cette solution artisanale.
 
 ---
 
@@ -18,6 +28,7 @@ Le programme peut :
 * **Activer/Désactiver** individuellement chaque macro sans le supprimer.
 * **Démarrer avec Windows** et se lancer en arrière-plan dans le system tray.
 * **Vérifier les mises à jour** GitHub automatiquement.
+* **S'installer automatiquement** dans Program Files au premier lancement.
 
 Il est conçu pour fonctionner en arrière-plan avec une consommation minimale de ressources.
 
@@ -56,7 +67,15 @@ Il est conçu pour fonctionner en arrière-plan avec une consommation minimale d
 
 ## Installation
 
-### Depuis les sources
+### Télécharger l'exécutable (recommandé)
+1. Télécharger le `.exe` depuis la [page Releases](https://github.com/Creefears/USB-Detect/releases)
+2. Double-cliquer sur le fichier — l'installateur se lance automatiquement
+3. L'application s'installe dans `C:\Program Files\USB Detect\`
+4. Un raccourci est créé dans le menu Démarrer
+
+Les données utilisateur (configuration, logs) sont stockées dans `%APPDATA%\USB Detect\`.
+
+### Depuis les sources (développeurs)
 1. **Cloner le dépôt** :
    ```
    git clone https://github.com/Creefears/USB-Detect.git
@@ -87,9 +106,9 @@ L'exécutable sera dans le dossier `dist/`.
 
 La configuration se fait via l'interface graphique ou le fichier `config.json`.
 
-Au premier lancement, `config.json` est créé automatiquement à partir de `config.example.json`.
+Au premier lancement, `config.json` est créé automatiquement à partir de `config.example.json` dans `%APPDATA%\USB Detect\`.
 
-**Important** : `config.json` est ignoré par Git pour préserver vos macros lors des mises à jour.
+**Important** : `config.json` est ignoré par Git et préservé lors des mises à jour.
 
 ### Paramètres disponibles
 | Paramètre | Description |
@@ -128,5 +147,13 @@ Ce projet est fourni à des fins pédagogiques. Avant toute utilisation en produ
 
 ---
 
+## Mise à jour
+
+Lors d'une mise à jour, une fenêtre **"Quoi de neuf"** s'affiche automatiquement pour présenter les nouveautés de la version.
+
+La mise à jour préserve votre configuration (macros, paramètres).
+
+---
+
 ## Crédit
-Ce logiciel a été entièrement conçu et généré par intelligence artificielle, puis testé et intégré par l'utilisateur.
+Ce logiciel a été entièrement conçu avec l'aide d'une intelligence artificielle, puis testé et intégré par l'utilisateur.

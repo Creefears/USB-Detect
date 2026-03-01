@@ -10,14 +10,17 @@ from pathlib import Path
 from PyQt6.QtCore import QSize, QThread, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
-    QMainWindow, QMenu, QMessageBox, QPushButton, QScrollArea,
-    QSystemTrayIcon, QTextEdit, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QDialog, QFileDialog, QHBoxLayout, QLabel,
+    QLineEdit, QMainWindow, QMenu, QMessageBox, QProgressBar, QPushButton,
+    QScrollArea, QSystemTrayIcon, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from engine import (
-    APP_VERSION, BASE_DIR, Config, Device, Engine, get_device_type, log,
-    check_for_update, set_startup_enabled, is_startup_enabled,
+    APP_VERSION, BASE_DIR, CONFIG_PATH, CHANGELOG, DATA_DIR, INSTALL_DIR,
+    Config, Device, Engine, get_device_type, log,
+    check_for_update, download_and_apply_update,
+    set_startup_enabled, is_startup_enabled, check_install_status,
+    self_install, self_uninstall, get_installed_version,
 )
 from wizard import DeviceWizard
 
@@ -409,15 +412,23 @@ class LogViewer(QDialog):
 class SettingsDialog(QDialog):
     """Fenêtre de paramètres généraux."""
 
+    update_signal = pyqtSignal(str)        # thread-safe status updates
+    progress_signal = pyqtSignal(int, str) # progress bar updates
+    done_signal = pyqtSignal(bool, str)    # download finished
+
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
+        self._asset_url = ""
         self.setWindowTitle("Paramètres — USB Detect")
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(460)
         self.setWindowFlags(
             Qt.WindowType.Window |
             Qt.WindowType.WindowCloseButtonHint
         )
+        self.update_signal.connect(self._set_update_status)
+        self.progress_signal.connect(self._set_progress)
+        self.done_signal.connect(self._on_download_done)
         self._build_ui()
 
     def _build_ui(self):
@@ -429,6 +440,8 @@ class SettingsDialog(QDialog):
         title.setStyleSheet("font-size: 13pt; font-weight: bold; color: #c0c0ff;")
         layout.addWidget(title)
 
+        chk_style = "QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }"
+
         # --- Démarrage ---
         grp_start = QLabel("Démarrage")
         grp_start.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
@@ -436,17 +449,17 @@ class SettingsDialog(QDialog):
 
         self.chk_startup = QCheckBox("Lancer USB Detect au démarrage de Windows")
         self.chk_startup.setChecked(self.config.start_with_windows)
-        self.chk_startup.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        self.chk_startup.setStyleSheet(chk_style)
         layout.addWidget(self.chk_startup)
 
         self.chk_tray = QCheckBox("Démarrer en arrière-plan (system tray)")
         self.chk_tray.setChecked(self.config.start_in_tray)
-        self.chk_tray.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        self.chk_tray.setStyleSheet(chk_style)
         layout.addWidget(self.chk_tray)
 
         self.chk_minimized = QCheckBox("Démarrer fenêtre minimisée")
         self.chk_minimized.setChecked(self.config.start_minimized)
-        self.chk_minimized.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        self.chk_minimized.setStyleSheet(chk_style)
         layout.addWidget(self.chk_minimized)
 
         # --- Notifications ---
@@ -456,18 +469,86 @@ class SettingsDialog(QDialog):
 
         self.chk_notif = QCheckBox("Activer les notifications")
         self.chk_notif.setChecked(self.config.notifications_enabled)
-        self.chk_notif.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        self.chk_notif.setStyleSheet(chk_style)
         layout.addWidget(self.chk_notif)
 
         self.chk_log = QCheckBox("Activer les logs")
         self.chk_log.setChecked(self.config.log_enabled)
-        self.chk_log.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        self.chk_log.setStyleSheet(chk_style)
         layout.addWidget(self.chk_log)
 
-        # --- Version ---
-        ver_lbl = QLabel(f"Version : v{APP_VERSION}")
-        ver_lbl.setStyleSheet("color: #555577; font-size: 8pt; margin-top: 10px;")
-        layout.addWidget(ver_lbl)
+        # --- Configuration (import/export) ---
+        grp_cfg = QLabel("Configuration")
+        grp_cfg.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
+        layout.addWidget(grp_cfg)
+
+        cfg_row = QHBoxLayout()
+        cfg_row.setSpacing(8)
+        cfg_info = QLabel("Sauvegardez vos macros avant une mise à jour")
+        cfg_info.setStyleSheet("color: #8888aa; font-size: 8pt;")
+        cfg_row.addWidget(cfg_info)
+        cfg_row.addStretch()
+
+        btn_style = (
+            "QPushButton { background: #2a2a4a; border: 1px solid #44447a; border-radius: 4px; "
+            "color: #a0a0e0; padding: 4px 12px; font-size: 9pt; }"
+            "QPushButton:hover { background: #3a3a5a; }"
+        )
+
+        export_btn = QPushButton("Exporter")
+        export_btn.setStyleSheet(btn_style)
+        export_btn.clicked.connect(self._export_config)
+        cfg_row.addWidget(export_btn)
+
+        import_btn = QPushButton("Importer")
+        import_btn.setStyleSheet(btn_style)
+        import_btn.clicked.connect(self._import_config)
+        cfg_row.addWidget(import_btn)
+
+        layout.addLayout(cfg_row)
+
+        # --- Mises à jour ---
+        grp_update = QLabel("Mises à jour")
+        grp_update.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
+        layout.addWidget(grp_update)
+
+        update_row = QHBoxLayout()
+        update_row.setSpacing(8)
+        ver_lbl = QLabel(f"Version actuelle : v{APP_VERSION}")
+        ver_lbl.setStyleSheet("color: #a0a0c0; font-size: 9pt;")
+        update_row.addWidget(ver_lbl)
+        update_row.addStretch()
+
+        self.update_status_lbl = QLabel("")
+        self.update_status_lbl.setStyleSheet("color: #66cc88; font-size: 9pt;")
+        update_row.addWidget(self.update_status_lbl)
+
+        self.check_update_btn = QPushButton("Vérifier")
+        self.check_update_btn.setStyleSheet(btn_style)
+        self.check_update_btn.clicked.connect(self._check_update)
+        update_row.addWidget(self.check_update_btn)
+
+        self.download_btn = QPushButton("Installer la mise à jour")
+        self.download_btn.setStyleSheet(
+            "QPushButton { background: #1a3a1a; border: 1px solid #2a6a2a; border-radius: 4px; "
+            "color: #88ee88; padding: 4px 12px; font-size: 9pt; }"
+            "QPushButton:hover { background: #2a5a2a; }"
+            "QPushButton:disabled { background: #1a1a2a; color: #555577; border-color: #333355; }"
+        )
+        self.download_btn.setVisible(False)
+        self.download_btn.clicked.connect(self._download_update)
+        update_row.addWidget(self.download_btn)
+        layout.addLayout(update_row)
+
+        # Barre de progression (masquée par défaut)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setStyleSheet(
+            "QProgressBar { background: #1a1a2a; border: 1px solid #333355; border-radius: 4px; "
+            "height: 18px; text-align: center; color: #a0a0e0; font-size: 8pt; }"
+            "QProgressBar::chunk { background: #2a5a2a; border-radius: 3px; }"
+        )
+        layout.addWidget(self.progress_bar)
 
         layout.addStretch()
 
@@ -486,6 +567,115 @@ class SettingsDialog(QDialog):
         btn_row.addWidget(cancel_btn)
         btn_row.addWidget(save_btn)
         layout.addLayout(btn_row)
+
+    # ---- Import / Export config ----
+    def _export_config(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Exporter la configuration", "usb_detect_config.json",
+            "JSON (*.json)")
+        if path:
+            import shutil
+            try:
+                shutil.copy2(str(CONFIG_PATH), path)
+                QMessageBox.information(self, "Export", f"Configuration exportée vers :\n{path}")
+            except Exception as e:
+                QMessageBox.warning(self, "Erreur", f"Impossible d'exporter :\n{e}")
+
+    def _import_config(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Importer une configuration", "",
+            "JSON (*.json)")
+        if not path:
+            return
+        try:
+            import json as _json
+            with open(path, "r", encoding="utf-8") as f:
+                data = _json.load(f)
+            # Validation minimale
+            if "devices" not in data or "general" not in data:
+                QMessageBox.warning(self, "Erreur",
+                    "Ce fichier n'est pas une configuration USB Detect valide.")
+                return
+            import shutil
+            shutil.copy2(path, str(CONFIG_PATH))
+            QMessageBox.information(self, "Import",
+                "Configuration importée avec succès.\n"
+                "Redémarrez USB Detect pour appliquer les changements.")
+        except Exception as e:
+            QMessageBox.warning(self, "Erreur", f"Impossible d'importer :\n{e}")
+
+    # ---- Mise à jour ----
+    def _check_update(self):
+        self.check_update_btn.setEnabled(False)
+        self.update_status_lbl.setText("Vérification…")
+        self.update_status_lbl.setStyleSheet("color: #8888cc; font-size: 9pt;")
+
+        def _on_result(version, url, asset_url):
+            if version:
+                self._asset_url = asset_url or ""
+                self.update_signal.emit(f"v{version} disponible !")
+                if asset_url:
+                    self.download_btn.setVisible(True)
+                parent = self.parent()
+                if parent and hasattr(parent, "update_available"):
+                    parent.update_available.emit(version, url)
+            else:
+                self.update_signal.emit("Vous êtes à jour.")
+            self.check_update_btn.setEnabled(True)
+
+        check_for_update(_on_result)
+
+    def _set_update_status(self, text):
+        self.update_status_lbl.setText(text)
+        self.update_status_lbl.setStyleSheet("color: #66cc88; font-size: 9pt;")
+
+    def _download_update(self):
+        if not self._asset_url:
+            QMessageBox.warning(self, "Erreur", "Aucun fichier de mise à jour trouvé dans la release.")
+            return
+        self.download_btn.setEnabled(False)
+        self.check_update_btn.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("Connexion…")
+
+        def _progress(pct, status):
+            self.progress_signal.emit(pct, status)
+
+        def _done(success, info):
+            self.done_signal.emit(success, info)
+
+        download_and_apply_update(self._asset_url, _progress, _done)
+
+    def _set_progress(self, pct, status):
+        self.progress_bar.setValue(pct)
+        self.progress_bar.setFormat(status)
+
+    def _on_download_done(self, success, info):
+        if success:
+            self.progress_bar.setValue(100)
+            self.progress_bar.setFormat("Prêt ! Redémarrage…")
+            bat_path = info
+            reply = QMessageBox.question(
+                self, "Mise à jour prête",
+                "La mise à jour a été téléchargée.\n\n"
+                "USB Detect va se fermer et se relancer automatiquement.\n"
+                "Votre configuration sera conservée.\n\n"
+                "Continuer ?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                import subprocess as _sp
+                _sp.Popen(["cmd", "/c", bat_path],
+                          creationflags=0x08000000)  # CREATE_NO_WINDOW
+                QApplication.quit()
+            else:
+                self.progress_bar.setFormat("Mise à jour en attente")
+                self.download_btn.setEnabled(True)
+        else:
+            self.progress_bar.setVisible(False)
+            self.download_btn.setEnabled(True)
+            self.check_update_btn.setEnabled(True)
+            QMessageBox.warning(self, "Erreur de mise à jour", f"Le téléchargement a échoué :\n{info}")
 
     def _save(self):
         self.config.start_with_windows = self.chk_startup.isChecked()
@@ -1213,7 +1403,7 @@ class MainWindow(QMainWindow):
             self._notify("USB Detect", "Paramètres sauvegardés.")
 
     # ---- Mise à jour GitHub ----
-    def _on_update_result(self, version, url):
+    def _on_update_result(self, version, url, asset_url=None):
         """Callback appelé depuis un thread — émet un signal pour l'UI."""
         if version:
             self.update_available.emit(version, url)
@@ -1245,9 +1435,208 @@ class MainWindow(QMainWindow):
 
 
 # ---------------------------------------------------------------------------
+# Premier lancement & Quoi de neuf
+# ---------------------------------------------------------------------------
+_STATE_FILE = DATA_DIR / ".app_state.json"
+
+
+def _load_app_state() -> dict:
+    try:
+        import json
+        return json.loads(_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_app_state(state: dict):
+    import json
+    _STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def _show_first_launch_dialog():
+    """Affiche un message de bienvenue au tout premier lancement."""
+    msg = QMessageBox()
+    msg.setWindowTitle("Bienvenue — USB Detect")
+    msg.setIcon(QMessageBox.Icon.Information)
+    msg.setText(
+        "<h3>Bienvenue dans USB Detect !</h3>"
+        "<p>Ce logiciel a été <b>entièrement concu avec l'aide d'une intelligence artificielle</b>.</p>"
+        "<p>Il est le fruit d'un besoin personnel : je n'ai trouvé aucune alternative satisfaisante "
+        "en ligne pour automatiser des actions en fonction de mes peripheriques USB. "
+        "Pendant longtemps, j'ai utilisé un petit script AutoHotkey bancal et potentiellement "
+        "dangereux pour mon système.</p>"
+        "<p>USB Detect remplace cette solution artisanale par une interface propre, "
+        "fiable et configurable.</p>"
+        "<hr>"
+        "<p><i>Projet open-source — contributions bienvenues sur GitHub.</i></p>"
+    )
+    msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+    msg.exec()
+
+
+def _show_whats_new_dialog(last_version: str):
+    """Affiche les nouveautés depuis la dernière version vue."""
+    from engine import _parse_version
+
+    last_v = _parse_version(last_version) if last_version else (0, 0, 0)
+    new_entries = []
+
+    for ver, changes in sorted(CHANGELOG.items(),
+                                key=lambda x: _parse_version(x[0]),
+                                reverse=True):
+        if _parse_version(ver) > last_v:
+            items = "".join(f"<li>{c}</li>" for c in changes)
+            new_entries.append(f"<h4>v{ver}</h4><ul>{items}</ul>")
+
+    if not new_entries:
+        return
+
+    msg = QMessageBox()
+    msg.setWindowTitle(f"Quoi de neuf — USB Detect v{APP_VERSION}")
+    msg.setIcon(QMessageBox.Icon.Information)
+    msg.setText(
+        "<h3>Nouveautés</h3>"
+        + "".join(new_entries)
+        + "<hr><p><i>Merci d'utiliser USB Detect !</i></p>"
+    )
+    msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+    msg.exec()
+
+
+def _check_first_launch_and_changelog():
+    """Vérifie s'il faut afficher le dialogue premier lancement ou changelog."""
+    state = _load_app_state()
+
+    if not state.get("first_launch_done"):
+        _show_first_launch_dialog()
+        state["first_launch_done"] = True
+        state["last_seen_version"] = APP_VERSION
+        _save_app_state(state)
+        return
+
+    last_seen = state.get("last_seen_version", "0.0.0")
+    if last_seen != APP_VERSION:
+        _show_whats_new_dialog(last_seen)
+        state["last_seen_version"] = APP_VERSION
+        _save_app_state(state)
+
+
+# ---------------------------------------------------------------------------
+# Auto-installation / mise à jour
+# ---------------------------------------------------------------------------
+def _handle_install_or_update():
+    """Gère l'installation ou la mise à jour au premier lancement du .exe."""
+    import ctypes
+
+    if not getattr(sys, "frozen", False):
+        return  # Mode dev → on lance directement
+
+    # Argument --install : appelé après élévation UAC
+    if "--install" in sys.argv:
+        self_install(is_update=False)
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)  # DETACHED_PROCESS
+        sys.exit(0)
+
+    # Argument --update : appelé après élévation UAC
+    if "--update" in sys.argv:
+        self_install(is_update=True)
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)
+        sys.exit(0)
+
+    # Argument --uninstall
+    if "--uninstall" in sys.argv:
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, '"--uninstall"', None, 1)
+            sys.exit(0)
+        app = QApplication(sys.argv)
+        app.setStyleSheet(STYLESHEET)
+        reply = QMessageBox.question(
+            None, "USB Detect — Désinstallation",
+            "Voulez-vous désinstaller USB Detect ?\n\n"
+            "Votre configuration (macros) sera sauvegardée sur le bureau.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self_uninstall()
+            QMessageBox.information(None, "Désinstallation terminée",
+                "USB Detect a été désinstallé.\n"
+                "Votre config a été sauvegardée sur le bureau.")
+        sys.exit(0)
+
+    # Vérifier le statut d'installation
+    status = check_install_status()
+
+    if status == "run":
+        return  # Lancé depuis Program Files → lancement normal
+
+    if status == "same":
+        # Même version installée dans Program Files → lancer celle-là
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)
+        sys.exit(0)
+
+    if status == "older":
+        # Version plus ancienne que celle installée → lancer l'installée
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)
+        sys.exit(0)
+
+    # Première installation ou mise à jour
+    app = QApplication(sys.argv)
+    app.setStyleSheet(STYLESHEET)
+
+    if status == "install":
+        reply = QMessageBox.question(
+            None, "USB Detect — Installation",
+            f"Bienvenue ! USB Detect va s'installer dans :\n"
+            f"{INSTALL_DIR}\n\n"
+            f"Un raccourci sera créé dans le menu Démarrer\n"
+            f"et l'application apparaîtra dans vos programmes.\n\n"
+            f"Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        flag = "--install"
+    else:  # status == "update"
+        old_ver = get_installed_version() or "?"
+        reply = QMessageBox.question(
+            None, "USB Detect — Mise à jour",
+            f"Une version plus récente va être installée :\n\n"
+            f"  Version installée : v{old_ver}\n"
+            f"  Nouvelle version  : v{APP_VERSION}\n\n"
+            f"Votre configuration (macros) sera conservée.\n\n"
+            f"Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        flag = "--update"
+
+    if reply != QMessageBox.StandardButton.Yes:
+        sys.exit(0)
+
+    # Demander élévation admin si nécessaire
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, f'"{flag}"', None, 1)
+        sys.exit(0)
+
+    # On a déjà les droits admin
+    self_install(is_update=(status == "update"))
+    dest = str(INSTALL_DIR / "USB Detect.exe")
+    import subprocess as _sp
+    _sp.Popen([dest], creationflags=0x00000008)
+    sys.exit(0)
+
+
+# ---------------------------------------------------------------------------
 # Point d'entrée
 # ---------------------------------------------------------------------------
 def main():
+    # Auto-installation / mise à jour / désinstallation
+    _handle_install_or_update()
+
     # Vérifier instance unique via fichier lock (avec vérification du PID)
     lock_path = BASE_DIR / "usb_detect.lock"
     if lock_path.exists():
@@ -1259,26 +1648,25 @@ def main():
                 QMessageBox.warning(None, "USB Detect", "Une instance est déjà en cours d'exécution.")
                 sys.exit(1)
             else:
-                # Lock orphelin (crash précédent) → on le supprime
                 lock_path.unlink()
         except Exception:
-            # Lock illisible ou psutil absent → on supprime prudemment
             lock_path.unlink(missing_ok=True)
 
-    # Définir un AppUserModelID pour que Windows affiche la bonne icône dans la barre des tâches
     try:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("USBDetect.App.v2")
     except Exception:
         pass
 
-    # Écrire notre PID dans le lock
     lock_path.write_text(str(os.getpid()))
     try:
         app = QApplication(sys.argv)
         app.setApplicationName("USB Detect")
         app.setQuitOnLastWindowClosed(False)
         app.setStyleSheet(STYLESHEET)
+
+        # Premier lancement / Quoi de neuf
+        _check_first_launch_and_changelog()
 
         config = Config.load()
         engine = Engine(config)

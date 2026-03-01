@@ -109,3 +109,5 @@ if __name__ == "__main__":
     install_dependencies()
     generate_ico()
     build_exe()
+    print()
+    print("L'exe s'installe automatiquement dans Program Files au premier lancement.")
