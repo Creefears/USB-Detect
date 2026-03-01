@@ -791,8 +791,8 @@ def is_startup_enabled() -> bool:
 def check_for_update(callback: Optional[Callable] = None):
     """Vérifie si une nouvelle version est disponible sur GitHub.
 
-    Appelle callback(latest_version, download_url) si une mise à jour est dispo,
-    ou callback(None, None) sinon. Exécuté dans un thread pour ne pas bloquer l'UI.
+    Appelle callback(latest_version, download_url, asset_url) si une mise à jour
+    est dispo, ou callback(None, None, None) sinon.
     """
     def _check():
         try:
@@ -803,17 +803,100 @@ def check_for_update(callback: Optional[Callable] = None):
                 data = json.loads(resp.read().decode("utf-8"))
             tag = data.get("tag_name", "").lstrip("vV")
             html_url = data.get("html_url", "")
+            # Chercher l'asset .exe dans la release
+            asset_url = ""
+            for asset in data.get("assets", []):
+                if asset.get("name", "").lower().endswith(".exe"):
+                    asset_url = asset.get("browser_download_url", "")
+                    break
             if tag and tag != APP_VERSION:
                 log.info(f"Mise à jour disponible : v{tag} (actuel: v{APP_VERSION})")
                 if callback:
-                    callback(tag, html_url)
+                    callback(tag, html_url, asset_url)
             else:
                 log.info(f"Aucune mise à jour (v{APP_VERSION} est à jour).")
                 if callback:
-                    callback(None, None)
+                    callback(None, None, None)
         except Exception as e:
             log.warning(f"Impossible de vérifier les mises à jour : {e}")
             if callback:
-                callback(None, None)
+                callback(None, None, None)
 
     threading.Thread(target=_check, daemon=True).start()
+
+
+def download_and_apply_update(asset_url: str, progress_callback: Optional[Callable] = None,
+                              done_callback: Optional[Callable] = None):
+    """Télécharge le .exe depuis GitHub et remplace l'exécutable actuel.
+
+    - progress_callback(percent: int, status: str) pour la progression
+    - done_callback(success: bool, error: str) quand c'est terminé
+    """
+    def _download():
+        import urllib.request
+        import tempfile
+        import shutil
+
+        try:
+            if progress_callback:
+                progress_callback(0, "Connexion au serveur…")
+
+            req = urllib.request.Request(asset_url)
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                total = int(resp.headers.get("Content-Length", 0))
+                downloaded = 0
+                chunk_size = 65536
+
+                # Télécharger dans un fichier temporaire
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".exe",
+                                                  dir=str(BASE_DIR))
+                tmp_path = tmp.name
+                try:
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        tmp.write(chunk)
+                        downloaded += len(chunk)
+                        if total > 0 and progress_callback:
+                            pct = int(downloaded * 100 / total)
+                            mb = downloaded / (1024 * 1024)
+                            total_mb = total / (1024 * 1024)
+                            progress_callback(pct, f"{mb:.1f} / {total_mb:.1f} Mo")
+                finally:
+                    tmp.close()
+
+            if progress_callback:
+                progress_callback(100, "Téléchargement terminé, installation…")
+
+            # Déterminer le chemin de l'exe actuel
+            if getattr(sys, "frozen", False):
+                current_exe = sys.executable
+            else:
+                # Mode dev : on place le .exe à côté dans dist/
+                dist_dir = BASE_DIR / "dist"
+                dist_dir.mkdir(exist_ok=True)
+                current_exe = str(dist_dir / "USB Detect.exe")
+
+            # Créer un script batch qui remplace l'exe après fermeture
+            bat_path = str(BASE_DIR / "_update.bat")
+            with open(bat_path, "w", encoding="utf-8") as bat:
+                bat.write("@echo off\n")
+                bat.write("echo Mise a jour de USB Detect...\n")
+                bat.write("timeout /t 2 /nobreak >nul\n")
+                bat.write(f'copy /y "{tmp_path}" "{current_exe}"\n')
+                bat.write(f'del "{tmp_path}"\n')
+                bat.write(f'start "" "{current_exe}"\n')
+                bat.write(f'del "%~f0"\n')
+
+            log.info(f"Mise à jour téléchargée : {tmp_path} → {current_exe}")
+
+            if done_callback:
+                done_callback(True, bat_path)
+
+        except Exception as e:
+            log.error(f"Erreur de téléchargement : {e}")
+            if done_callback:
+                done_callback(False, str(e))
+
+    threading.Thread(target=_download, daemon=True).start()
