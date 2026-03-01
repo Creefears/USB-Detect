@@ -80,17 +80,13 @@ def build_exe():
         "--windowed",
         "--name", "USB Detect",
         "--add-data", f"config.example.json{';' if sys.platform == 'win32' else ':'}.",
+        "--collect-all", "PyQt6",
         "--hidden-import", "wmi",
         "--hidden-import", "win32api",
         "--hidden-import", "win32con",
         "--hidden-import", "win32gui",
         "--hidden-import", "win32process",
         "--hidden-import", "psutil",
-        "--hidden-import", "PyQt6",
-        "--hidden-import", "PyQt6.QtCore",
-        "--hidden-import", "PyQt6.QtGui",
-        "--hidden-import", "PyQt6.QtWidgets",
-        "--hidden-import", "PyQt6.sip",
     ]
 
     if ICO_PATH.exists():
