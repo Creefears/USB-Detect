@@ -110,5 +110,4 @@ if __name__ == "__main__":
     generate_ico()
     build_exe()
     print()
-    print("Pour installer dans Program Files, lancez :")
-    print("  python installer.py")
+    print("L'exe s'installe automatiquement dans Program Files au premier lancement.")

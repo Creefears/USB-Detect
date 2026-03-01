@@ -18,6 +18,8 @@ from typing import Callable, Optional
 
 APP_VERSION = "2.1.0"
 GITHUB_REPO = "Creefears/USB-Detect"
+APP_NAME = "USB Detect"
+INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
 
 # ---------------------------------------------------------------------------
 # Chemins
@@ -904,3 +906,202 @@ def download_and_apply_update(asset_url: str, progress_callback: Optional[Callab
                 done_callback(False, str(e))
 
     threading.Thread(target=_download, daemon=True).start()
+
+
+# ---------------------------------------------------------------------------
+# Auto-installation dans Program Files
+# ---------------------------------------------------------------------------
+def _parse_version(v: str) -> tuple:
+    """Transforme '2.1.0' en (2, 1, 0) pour comparaison."""
+    try:
+        return tuple(int(x) for x in v.strip().lstrip("vV").split("."))
+    except Exception:
+        return (0, 0, 0)
+
+
+def is_installed() -> bool:
+    """Vérifie si l'exe tourne depuis le dossier d'installation."""
+    if not getattr(sys, "frozen", False):
+        return True  # Mode dev → pas d'install
+    try:
+        exe_dir = Path(sys.executable).resolve().parent
+        target = INSTALL_DIR.resolve()
+        return exe_dir == target
+    except Exception:
+        return False
+
+
+def get_installed_version() -> Optional[str]:
+    """Lit la version installée dans le registre. Retourne None si pas installé."""
+    try:
+        import winreg as _wr
+        with _wr.OpenKey(_wr.HKEY_LOCAL_MACHINE,
+                         r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect",
+                         0, _wr.KEY_READ) as key:
+            val, _ = _wr.QueryValueEx(key, "DisplayVersion")
+            return val
+    except Exception:
+        return None
+
+
+def check_install_status() -> str:
+    """Détermine l'action à effectuer au lancement.
+
+    Retourne :
+      'run'     — déjà installé, lancer normalement
+      'install' — première installation
+      'update'  — version plus récente que celle installée
+      'older'   — version plus ancienne que celle installée (ne rien faire)
+    """
+    if not getattr(sys, "frozen", False):
+        return "run"  # Mode dev
+    if is_installed():
+        return "run"  # Lancé depuis Program Files
+
+    installed_ver = get_installed_version()
+    if installed_ver is None:
+        return "install"
+
+    current = _parse_version(APP_VERSION)
+    installed = _parse_version(installed_ver)
+    if current > installed:
+        return "update"
+    elif current < installed:
+        return "older"
+    else:
+        return "run"  # Même version, juste lancer l'installé
+
+
+def self_install(is_update: bool = False) -> Optional[str]:
+    """Copie l'exe dans Program Files et configure Windows.
+
+    Si is_update=True, remplace l'exe existant sans toucher à la config.
+    Retourne le chemin de l'exe installé, ou None en cas d'échec.
+    Doit être appelé avec les droits admin.
+    """
+    import shutil
+
+    current_exe = Path(sys.executable).resolve()
+
+    # Créer le dossier d'installation
+    INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+
+    dest_exe = INSTALL_DIR / "USB Detect.exe"
+
+    # Copier l'exe (remplace s'il existe déjà)
+    shutil.copy2(str(current_exe), str(dest_exe))
+
+    # Extraire config.example.json si embarqué par PyInstaller
+    internal_data = getattr(sys, "_MEIPASS", None)
+    if internal_data:
+        example_src = Path(internal_data) / "config.example.json"
+        if example_src.exists():
+            dest_example = INSTALL_DIR / "config.example.json"
+            # Toujours mettre à jour l'exemple
+            shutil.copy2(str(example_src), str(dest_example))
+
+    # Raccourci dans le menu Démarrer (créer ou mettre à jour)
+    _create_start_menu_shortcut(str(dest_exe))
+
+    # Enregistrement dans Ajout/Suppression de programmes (met à jour la version)
+    _register_uninstall(str(dest_exe))
+
+    return str(dest_exe)
+
+
+def self_uninstall():
+    """Supprime l'installation (appelé via l'app ou la ligne de commande)."""
+    import shutil
+    import winreg as _wr
+
+    # Sauvegarder config sur le bureau
+    config_path = INSTALL_DIR / "config.json"
+    if config_path.exists():
+        backup = Path.home() / "Desktop" / "usb_detect_config_backup.json"
+        shutil.copy2(str(config_path), str(backup))
+        log.info(f"Config sauvegardée : {backup}")
+
+    # Raccourci menu Démarrer
+    start_menu = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / \
+        "Microsoft" / "Windows" / "Start Menu" / "Programs"
+    lnk = start_menu / "USB Detect.lnk"
+    if lnk.exists():
+        lnk.unlink()
+
+    # Registre : Ajout/Suppression
+    try:
+        _wr.DeleteKey(_wr.HKEY_LOCAL_MACHINE,
+                      r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect")
+    except FileNotFoundError:
+        pass
+
+    # Registre : démarrage auto
+    try:
+        with _wr.OpenKey(_wr.HKEY_CURRENT_USER,
+                         r"Software\Microsoft\Windows\CurrentVersion\Run",
+                         0, _wr.KEY_SET_VALUE) as k:
+            _wr.DeleteValue(k, "USBDetect")
+    except FileNotFoundError:
+        pass
+
+    # Créer un batch qui supprimera le dossier après fermeture de l'exe
+    bat = INSTALL_DIR / "_cleanup.bat"
+    bat.write_text(
+        "@echo off\n"
+        "timeout /t 2 /nobreak >nul\n"
+        f'rmdir /s /q "{INSTALL_DIR}"\n'
+        'del "%~f0"\n',
+        encoding="utf-8"
+    )
+    subprocess.Popen(
+        ["cmd", "/c", str(bat)],
+        creationflags=0x08000000  # CREATE_NO_WINDOW
+    )
+
+
+def _create_start_menu_shortcut(exe_path: str):
+    """Crée un raccourci .lnk dans le menu Démarrer."""
+    start_menu = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / \
+        "Microsoft" / "Windows" / "Start Menu" / "Programs"
+    lnk = start_menu / "USB Detect.lnk"
+    ico = INSTALL_DIR / "usb_detect.ico"
+    ps_cmd = (
+        f'$ws = New-Object -ComObject WScript.Shell; '
+        f'$s = $ws.CreateShortcut("{lnk}"); '
+        f'$s.TargetPath = "{exe_path}"; '
+        f'$s.WorkingDirectory = "{INSTALL_DIR}"; '
+        f'$s.Description = "Surveillance USB en temps réel"; '
+    )
+    if ico.exists():
+        ps_cmd += f'$s.IconLocation = "{ico}"; '
+    ps_cmd += '$s.Save()'
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            check=True, creationflags=0x08000000
+        )
+    except Exception as e:
+        log.warning(f"Raccourci non créé : {e}")
+
+
+def _register_uninstall(exe_path: str):
+    """Enregistre le programme dans Ajout/Suppression de programmes."""
+    import winreg as _wr
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect"
+    try:
+        with _wr.CreateKey(_wr.HKEY_LOCAL_MACHINE, key_path) as key:
+            _wr.SetValueEx(key, "DisplayName", 0, _wr.REG_SZ, APP_NAME)
+            _wr.SetValueEx(key, "Publisher", 0, _wr.REG_SZ, "Creefears")
+            _wr.SetValueEx(key, "DisplayVersion", 0, _wr.REG_SZ, APP_VERSION)
+            _wr.SetValueEx(key, "InstallLocation", 0, _wr.REG_SZ, str(INSTALL_DIR))
+            ico = INSTALL_DIR / "usb_detect.ico"
+            if ico.exists():
+                _wr.SetValueEx(key, "DisplayIcon", 0, _wr.REG_SZ, str(ico))
+            _wr.SetValueEx(key, "UninstallString", 0, _wr.REG_SZ,
+                           f'"{exe_path}" --uninstall')
+            _wr.SetValueEx(key, "NoModify", 0, _wr.REG_DWORD, 1)
+            _wr.SetValueEx(key, "NoRepair", 0, _wr.REG_DWORD, 1)
+            exe_size = Path(exe_path).stat().st_size // 1024
+            _wr.SetValueEx(key, "EstimatedSize", 0, _wr.REG_DWORD, exe_size)
+    except PermissionError:
+        log.warning("Impossible d'enregistrer dans Ajout/Suppression (droits admin)")

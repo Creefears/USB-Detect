@@ -16,9 +16,10 @@ from PyQt6.QtWidgets import (
 )
 
 from engine import (
-    APP_VERSION, BASE_DIR, CONFIG_PATH, Config, Device, Engine,
+    APP_VERSION, BASE_DIR, CONFIG_PATH, INSTALL_DIR, Config, Device, Engine,
     get_device_type, log, check_for_update, download_and_apply_update,
-    set_startup_enabled, is_startup_enabled,
+    set_startup_enabled, is_startup_enabled, check_install_status,
+    self_install, self_uninstall, get_installed_version,
 )
 from wizard import DeviceWizard
 
@@ -1433,9 +1434,115 @@ class MainWindow(QMainWindow):
 
 
 # ---------------------------------------------------------------------------
+# Auto-installation / mise à jour
+# ---------------------------------------------------------------------------
+def _handle_install_or_update():
+    """Gère l'installation ou la mise à jour au premier lancement du .exe."""
+    import ctypes
+
+    if not getattr(sys, "frozen", False):
+        return  # Mode dev → on lance directement
+
+    # Argument --install : appelé après élévation UAC
+    if "--install" in sys.argv:
+        self_install(is_update=False)
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)  # DETACHED_PROCESS
+        sys.exit(0)
+
+    # Argument --update : appelé après élévation UAC
+    if "--update" in sys.argv:
+        self_install(is_update=True)
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)
+        sys.exit(0)
+
+    # Argument --uninstall
+    if "--uninstall" in sys.argv:
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, '"--uninstall"', None, 1)
+            sys.exit(0)
+        app = QApplication(sys.argv)
+        app.setStyleSheet(STYLESHEET)
+        reply = QMessageBox.question(
+            None, "USB Detect — Désinstallation",
+            "Voulez-vous désinstaller USB Detect ?\n\n"
+            "Votre configuration (macros) sera sauvegardée sur le bureau.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self_uninstall()
+            QMessageBox.information(None, "Désinstallation terminée",
+                "USB Detect a été désinstallé.\n"
+                "Votre config a été sauvegardée sur le bureau.")
+        sys.exit(0)
+
+    # Vérifier le statut d'installation
+    status = check_install_status()
+
+    if status == "run":
+        return  # Déjà installé ou même version → lancement normal
+
+    if status == "older":
+        # Version plus ancienne que celle installée → lancer l'installée
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        if Path(dest).exists():
+            import subprocess as _sp
+            _sp.Popen([dest], creationflags=0x00000008)
+        sys.exit(0)
+
+    # Première installation ou mise à jour
+    app = QApplication(sys.argv)
+    app.setStyleSheet(STYLESHEET)
+
+    if status == "install":
+        reply = QMessageBox.question(
+            None, "USB Detect — Installation",
+            f"Bienvenue ! USB Detect va s'installer dans :\n"
+            f"{INSTALL_DIR}\n\n"
+            f"Un raccourci sera créé dans le menu Démarrer\n"
+            f"et l'application apparaîtra dans vos programmes.\n\n"
+            f"Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        flag = "--install"
+    else:  # status == "update"
+        old_ver = get_installed_version() or "?"
+        reply = QMessageBox.question(
+            None, "USB Detect — Mise à jour",
+            f"Une version plus récente va être installée :\n\n"
+            f"  Version installée : v{old_ver}\n"
+            f"  Nouvelle version  : v{APP_VERSION}\n\n"
+            f"Votre configuration (macros) sera conservée.\n\n"
+            f"Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        flag = "--update"
+
+    if reply != QMessageBox.StandardButton.Yes:
+        sys.exit(0)
+
+    # Demander élévation admin si nécessaire
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, f'"{flag}"', None, 1)
+        sys.exit(0)
+
+    # On a déjà les droits admin
+    self_install(is_update=(status == "update"))
+    dest = str(INSTALL_DIR / "USB Detect.exe")
+    import subprocess as _sp
+    _sp.Popen([dest], creationflags=0x00000008)
+    sys.exit(0)
+
+
+# ---------------------------------------------------------------------------
 # Point d'entrée
 # ---------------------------------------------------------------------------
 def main():
+    # Auto-installation / mise à jour / désinstallation
+    _handle_install_or_update()
+
     # Vérifier instance unique via fichier lock (avec vérification du PID)
     lock_path = BASE_DIR / "usb_detect.lock"
     if lock_path.exists():
@@ -1447,20 +1554,16 @@ def main():
                 QMessageBox.warning(None, "USB Detect", "Une instance est déjà en cours d'exécution.")
                 sys.exit(1)
             else:
-                # Lock orphelin (crash précédent) → on le supprime
                 lock_path.unlink()
         except Exception:
-            # Lock illisible ou psutil absent → on supprime prudemment
             lock_path.unlink(missing_ok=True)
 
-    # Définir un AppUserModelID pour que Windows affiche la bonne icône dans la barre des tâches
     try:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("USBDetect.App.v2")
     except Exception:
         pass
 
-    # Écrire notre PID dans le lock
     lock_path.write_text(str(os.getpid()))
     try:
         app = QApplication(sys.argv)
