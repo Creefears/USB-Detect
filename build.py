@@ -86,6 +86,11 @@ def build_exe():
         "--hidden-import", "win32gui",
         "--hidden-import", "win32process",
         "--hidden-import", "psutil",
+        "--hidden-import", "PyQt6",
+        "--hidden-import", "PyQt6.QtCore",
+        "--hidden-import", "PyQt6.QtGui",
+        "--hidden-import", "PyQt6.QtWidgets",
+        "--hidden-import", "PyQt6.sip",
     ]
 
     if ICO_PATH.exists():
