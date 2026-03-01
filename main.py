@@ -4,17 +4,21 @@ USB Detect v2 - Interface principale PyQt6
 
 import sys
 import os
+import webbrowser
 from pathlib import Path
 
 from PyQt6.QtCore import QSize, QThread, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication, QDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-    QMenu, QMessageBox, QPushButton, QScrollArea,
+    QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
+    QMainWindow, QMenu, QMessageBox, QPushButton, QScrollArea,
     QSystemTrayIcon, QTextEdit, QVBoxLayout, QWidget,
 )
 
-from engine import BASE_DIR, Config, Device, Engine, get_device_type, log
+from engine import (
+    APP_VERSION, BASE_DIR, Config, Device, Engine, get_device_type, log,
+    check_for_update, set_startup_enabled, is_startup_enabled,
+)
 from wizard import DeviceWizard
 
 # ---------------------------------------------------------------------------
@@ -400,6 +404,103 @@ class LogViewer(QDialog):
 
 
 # ---------------------------------------------------------------------------
+# Dialogue Paramètres
+# ---------------------------------------------------------------------------
+class SettingsDialog(QDialog):
+    """Fenêtre de paramètres généraux."""
+
+    def __init__(self, config: Config, parent=None):
+        super().__init__(parent)
+        self.config = config
+        self.setWindowTitle("Paramètres — USB Detect")
+        self.setMinimumWidth(420)
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowCloseButtonHint
+        )
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(12)
+
+        title = QLabel("Paramètres")
+        title.setStyleSheet("font-size: 13pt; font-weight: bold; color: #c0c0ff;")
+        layout.addWidget(title)
+
+        # --- Démarrage ---
+        grp_start = QLabel("Démarrage")
+        grp_start.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
+        layout.addWidget(grp_start)
+
+        self.chk_startup = QCheckBox("Lancer USB Detect au démarrage de Windows")
+        self.chk_startup.setChecked(self.config.start_with_windows)
+        self.chk_startup.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        layout.addWidget(self.chk_startup)
+
+        self.chk_tray = QCheckBox("Démarrer en arrière-plan (system tray)")
+        self.chk_tray.setChecked(self.config.start_in_tray)
+        self.chk_tray.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        layout.addWidget(self.chk_tray)
+
+        self.chk_minimized = QCheckBox("Démarrer fenêtre minimisée")
+        self.chk_minimized.setChecked(self.config.start_minimized)
+        self.chk_minimized.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        layout.addWidget(self.chk_minimized)
+
+        # --- Notifications ---
+        grp_notif = QLabel("Notifications")
+        grp_notif.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
+        layout.addWidget(grp_notif)
+
+        self.chk_notif = QCheckBox("Activer les notifications")
+        self.chk_notif.setChecked(self.config.notifications_enabled)
+        self.chk_notif.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        layout.addWidget(self.chk_notif)
+
+        self.chk_log = QCheckBox("Activer les logs")
+        self.chk_log.setChecked(self.config.log_enabled)
+        self.chk_log.setStyleSheet("QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }")
+        layout.addWidget(self.chk_log)
+
+        # --- Version ---
+        ver_lbl = QLabel(f"Version : v{APP_VERSION}")
+        ver_lbl.setStyleSheet("color: #555577; font-size: 8pt; margin-top: 10px;")
+        layout.addWidget(ver_lbl)
+
+        layout.addStretch()
+
+        # --- Boutons ---
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        save_btn = QPushButton("Sauvegarder")
+        save_btn.setObjectName("primary")
+        save_btn.clicked.connect(self._save)
+
+        cancel_btn = QPushButton("Annuler")
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_row.addStretch()
+        btn_row.addWidget(cancel_btn)
+        btn_row.addWidget(save_btn)
+        layout.addLayout(btn_row)
+
+    def _save(self):
+        self.config.start_with_windows = self.chk_startup.isChecked()
+        self.config.start_in_tray = self.chk_tray.isChecked()
+        self.config.start_minimized = self.chk_minimized.isChecked()
+        self.config.notifications_enabled = self.chk_notif.isChecked()
+        self.config.log_enabled = self.chk_log.isChecked()
+        self.config.save()
+
+        set_startup_enabled(self.config.start_with_windows)
+
+        self.accept()
+
+
+# ---------------------------------------------------------------------------
 # Thread de scan périodique (toutes les 2s)
 # ---------------------------------------------------------------------------
 class ScanWorker(QThread):
@@ -432,6 +533,7 @@ class DeviceCard(QWidget):
     delete_requested = pyqtSignal(object)           # Device
     test_connect_requested = pyqtSignal(object)     # Device
     test_disconnect_requested = pyqtSignal(object)  # Device
+    toggle_requested = pyqtSignal(object)           # Device (enable/disable)
 
     def __init__(self, device: Device, parent=None):
         super().__init__(parent)
@@ -575,6 +677,13 @@ class DeviceCard(QWidget):
         sep_v.setStyleSheet("color: #3a3a4a; max-width: 1px;")
         sep_v.setFixedHeight(24)
 
+        # --- Bouton ON/OFF (toggle enabled) ---
+        self.toggle_btn = QPushButton()
+        self.toggle_btn.setFixedSize(32, 32)
+        self.toggle_btn.setToolTip("Activer / Désactiver ce macro")
+        self.toggle_btn.clicked.connect(lambda: self.toggle_requested.emit(self.device))
+        self._update_toggle_style()
+
         # --- Boutons d'action ---
         edit_btn = QPushButton()
         edit_btn.setIcon(icon_edit())
@@ -607,18 +716,51 @@ class DeviceCard(QWidget):
         layout.addWidget(test_con_btn)
         layout.addWidget(test_dis_btn)
         layout.addWidget(sep_v)
+        layout.addWidget(self.toggle_btn)
         layout.addWidget(edit_btn)
         layout.addWidget(del_btn)
 
+        # Opacité si désactivé
+        if not self.device.enabled:
+            self.setStyleSheet(self.styleSheet() + "\n#DeviceCard { opacity: 0.5; }")
+
         # Tooltip global sur la carte
+        status_txt = "Activé" if self.device.enabled else "Désactivé"
         self.setToolTip(
             f"Type : {_type_labels.get(dev_type, 'Périphérique')}\n"
             f"Nom : {self.device.name}\n"
             f"Identifiant : {self.device.id}\n"
-            f"Correspondance : {self.device.match_type}"
+            f"Correspondance : {self.device.match_type}\n"
+            f"Statut : {status_txt}"
         )
 
+    def _update_toggle_style(self):
+        if self.device.enabled:
+            self.toggle_btn.setText("ON")
+            self.toggle_btn.setStyleSheet("""
+                QPushButton { background: #1a3a1a; border: 1px solid #2a8a2a; border-radius: 6px;
+                              color: #44cc44; font-size: 8pt; font-weight: bold; }
+                QPushButton:hover { background: #2a5a2a; border-color: #44aa44; }
+            """)
+        else:
+            self.toggle_btn.setText("OFF")
+            self.toggle_btn.setStyleSheet("""
+                QPushButton { background: #2a1a1a; border: 1px solid #6a3333; border-radius: 6px;
+                              color: #aa5555; font-size: 8pt; font-weight: bold; }
+                QPushButton:hover { background: #3a2020; border-color: #aa4444; }
+            """)
+
     def update_state(self, connected: bool):
+        if not self.device.enabled:
+            self.dot.setStyleSheet("color: #444455;")
+            self.state_lbl.setText("DÉSACTIVÉ")
+            self.state_lbl.setStyleSheet(
+                "color: #555566; background: rgba(80,80,100,0.10); "
+                "border-radius: 4px; padding: 3px 6px; font-size: 8pt; font-weight: bold;"
+            )
+            self.name_lbl.setStyleSheet("color: #666688;")
+            return
+        self.name_lbl.setStyleSheet("")
         if connected:
             self.dot.setStyleSheet("color: #00dd77;")
             self.state_lbl.setText("CONNECTÉ")
@@ -640,20 +782,22 @@ class DeviceCard(QWidget):
 # ---------------------------------------------------------------------------
 class MainWindow(QMainWindow):
     confirm_signal = pyqtSignal(object, bool)  # (device, confirmed)
+    update_available = pyqtSignal(str, str)     # (version, url)
 
     def __init__(self, engine: Engine):
         super().__init__()
         self.engine = engine
         self.config = engine.config
         self.cards: dict[str, DeviceCard] = {}  # device.name → card
+        self._update_url: str = ""
 
-        self.setWindowTitle("USB Detect")
+        self.setWindowTitle(f"USB Detect v{APP_VERSION}")
         self.setMinimumSize(660, 400)
         self.setWindowFlags(Qt.WindowType.Window)
         self._log_viewer: LogViewer | None = None
 
         # Icône de fenêtre : priorité au fichier .ico, sinon icône USB générée via SVG
-        ico_path = BASE_DIR / "Usb Detect Ico.ico"
+        ico_path = BASE_DIR / "usb_detect.ico"
         if ico_path.exists():
             self.setWindowIcon(QIcon(str(ico_path)))
         else:
@@ -669,8 +813,12 @@ class MainWindow(QMainWindow):
         self.engine.on_confirm_needed = self._ask_confirm
         self.engine.on_notify = self._notify
 
-        # Fix #8 : évite le flash de fenêtre — on diffère le hide() après l'event loop
-        if self.config.start_minimized:
+        # Vérification des mises à jour au lancement
+        self.update_available.connect(self._show_update_banner)
+        check_for_update(self._on_update_result)
+
+        # Démarrage : masquer si start_in_tray ou start_minimized
+        if self.config.start_in_tray or self.config.start_minimized:
             self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
             QTimer.singleShot(0, self.hide)
         else:
@@ -684,6 +832,38 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(12, 10, 12, 10)
         root.setSpacing(8)
 
+        # ── Bannière de mise à jour (masquée par défaut) ─────────────────────
+        self.update_banner = QWidget()
+        self.update_banner.setStyleSheet(
+            "background: #1a2a1a; border: 1px solid #2a6a2a; border-radius: 6px;"
+        )
+        self.update_banner.setVisible(False)
+        ub_lay = QHBoxLayout(self.update_banner)
+        ub_lay.setContentsMargins(10, 6, 10, 6)
+        ub_lay.setSpacing(8)
+        self.update_lbl = QLabel("")
+        self.update_lbl.setStyleSheet(
+            "color: #66cc88; font-size: 9pt; background: transparent; border: none;"
+        )
+        update_btn = QPushButton("Mettre à jour")
+        update_btn.setStyleSheet(
+            "QPushButton { background: #2a5a2a; border: 1px solid #44aa44; border-radius: 4px; "
+            "color: #88ee88; padding: 3px 10px; font-size: 9pt; }"
+            "QPushButton:hover { background: #3a7a3a; }"
+        )
+        update_btn.clicked.connect(self._open_update_url)
+        dismiss_btn = QPushButton("X")
+        dismiss_btn.setFixedSize(22, 22)
+        dismiss_btn.setStyleSheet(
+            "QPushButton { background: transparent; border: none; color: #558855; font-size: 10pt; }"
+            "QPushButton:hover { color: #88cc88; }"
+        )
+        dismiss_btn.clicked.connect(lambda: self.update_banner.setVisible(False))
+        ub_lay.addWidget(self.update_lbl, stretch=1)
+        ub_lay.addWidget(update_btn)
+        ub_lay.addWidget(dismiss_btn)
+        root.addWidget(self.update_banner)
+
         # ── En-tête compact ──────────────────────────────────────────────────
         hdr = QWidget()
         hdr.setStyleSheet(
@@ -693,7 +873,7 @@ class MainWindow(QMainWindow):
         hdr_lay.setContentsMargins(14, 8, 14, 8)
         hdr_lay.setSpacing(10)
 
-        title_lbl = QLabel("🔌  USB Detect")
+        title_lbl = QLabel(f"USB Detect  v{APP_VERSION}")
         title_lbl.setStyleSheet(
             "font-size: 12pt; font-weight: bold; color: #c0c0ff; "
             "background: transparent; border: none;"
@@ -738,7 +918,7 @@ class MainWindow(QMainWindow):
         sep.setStyleSheet("color: #2a2a4a; background: #2a2a4a; max-height: 1px;")
         root.addWidget(sep)
 
-        # ── Barre du bas : [ ＋ Ajouter ]  [ ⟳ scan_lbl ]  [ 📋 Logs ] ────
+        # ── Barre du bas ─────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
@@ -751,13 +931,18 @@ class MainWindow(QMainWindow):
         self.scan_lbl.setStyleSheet("color: #6666cc; font-size: 9pt;")
         self.scan_lbl.setToolTip("Scan automatique toutes les 5 secondes via WMI")
 
-        log_btn = QPushButton("📋  Logs")
+        settings_btn = QPushButton("Paramètres")
+        settings_btn.setToolTip("Ouvrir les paramètres de l'application")
+        settings_btn.clicked.connect(self._open_settings)
+
+        log_btn = QPushButton("Logs")
         log_btn.setToolTip("Ouvrir la visionneuse de logs intégrée")
         log_btn.clicked.connect(self._open_log)
 
         btn_row.addWidget(add_btn)
         btn_row.addStretch()
         btn_row.addWidget(self.scan_lbl)
+        btn_row.addWidget(settings_btn)
         btn_row.addWidget(log_btn)
         root.addLayout(btn_row)
 
@@ -780,6 +965,7 @@ class MainWindow(QMainWindow):
             card.delete_requested.connect(self._delete_device)
             card.test_connect_requested.connect(self._test_connect)
             card.test_disconnect_requested.connect(self._test_disconnect)
+            card.toggle_requested.connect(self._toggle_device)
             card.update_state(device.connected)
             self.cards[device.name] = card
             self.cards_layout.addWidget(card)
@@ -823,20 +1009,23 @@ class MainWindow(QMainWindow):
         menu = QMenu()
         menu.setStyleSheet(STYLESHEET)
 
-        show_action = QAction("🖥  Afficher", self)
+        show_action = QAction("Afficher", self)
         show_action.triggered.connect(self._show_window)
-        add_action = QAction("＋  Ajouter un périphérique", self)
+        add_action = QAction("Ajouter un périphérique", self)
         add_action.triggered.connect(self._add_device)
-        reload_action = QAction("⟳  Recharger la config", self)
+        settings_action = QAction("Paramètres", self)
+        settings_action.triggered.connect(self._open_settings)
+        reload_action = QAction("Recharger la config", self)
         reload_action.triggered.connect(self._reload_config)
-        log_action = QAction("📋  Ouvrir les logs", self)
+        log_action = QAction("Ouvrir les logs", self)
         log_action.triggered.connect(self._open_log)
-        quit_action = QAction("✕  Quitter", self)
+        quit_action = QAction("Quitter", self)
         quit_action.triggered.connect(self._quit)
 
         menu.addAction(show_action)
         menu.addAction(add_action)
         menu.addSeparator()
+        menu.addAction(settings_action)
         menu.addAction(reload_action)
         menu.addAction(log_action)
         menu.addSeparator()
@@ -966,6 +1155,15 @@ class MainWindow(QMainWindow):
             self._rebuild_cards()
             log.info(f"Périphérique supprimé : {device.name}")
 
+    def _toggle_device(self, device: Device):
+        """Active ou désactive un macro sans le supprimer."""
+        device.enabled = not device.enabled
+        self.config.save()
+        self._rebuild_cards()
+        state = "activé" if device.enabled else "désactivé"
+        log.info(f"Macro {state} : {device.name}")
+        self._notify("USB Detect", f"{device.name} {state}")
+
     def _test_connect(self, device: Device):
         """Déclenche manuellement les actions de connexion, indépendamment de l'état réel."""
         import threading
@@ -1006,6 +1204,29 @@ class MainWindow(QMainWindow):
         self._log_viewer = LogViewer(parent=self)
         self._log_viewer.setStyleSheet(STYLESHEET)
         self._log_viewer.show()
+
+    def _open_settings(self):
+        dlg = SettingsDialog(self.config, parent=self)
+        dlg.setStyleSheet(STYLESHEET)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            log.info("Paramètres sauvegardés.")
+            self._notify("USB Detect", "Paramètres sauvegardés.")
+
+    # ---- Mise à jour GitHub ----
+    def _on_update_result(self, version, url):
+        """Callback appelé depuis un thread — émet un signal pour l'UI."""
+        if version:
+            self.update_available.emit(version, url)
+
+    def _show_update_banner(self, version: str, url: str):
+        """Affiche la bannière de mise à jour dans l'UI."""
+        self._update_url = url
+        self.update_lbl.setText(f"Nouvelle version disponible : v{version}")
+        self.update_banner.setVisible(True)
+
+    def _open_update_url(self):
+        if self._update_url:
+            webbrowser.open(self._update_url)
 
     def _quit(self):
         self.worker.stop()

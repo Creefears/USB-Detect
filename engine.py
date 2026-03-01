@@ -8,17 +8,23 @@ import logging
 import os
 import re
 import subprocess
+import sys
 import time
+import threading
 from dataclasses import dataclass, field
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Callable, Optional
 
+APP_VERSION = "2.1.0"
+GITHUB_REPO = "Creefears/USB-Detect"
+
 # ---------------------------------------------------------------------------
 # Chemins
 # ---------------------------------------------------------------------------
-BASE_DIR   = Path(__file__).parent
+BASE_DIR    = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config.json"
+CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
 LOG_PATH    = BASE_DIR / "usb_detect.log"
 ICON_PATH   = BASE_DIR / "icon.png"
 
@@ -96,6 +102,7 @@ class Device:
     match_type: str = "contains"     # contains | exact | regex
     confirm_on_disconnect: bool = False
     execution_condition: str = ""    # Condition globale d'exécution des actions
+    enabled: bool = True             # Activer/désactiver le macro sans le supprimer
     on_connect: list[Action] = field(default_factory=list)
     on_disconnect: list[Action] = field(default_factory=list)
     connected: bool = False
@@ -109,6 +116,7 @@ class Device:
             match_type=d.get("match_type", "contains"),
             confirm_on_disconnect=d.get("confirm_on_disconnect", False),
             execution_condition=d.get("execution_condition", ""),
+            enabled=d.get("enabled", True),
             on_connect=[Action.from_dict(a) for a in d.get("on_connect", [])],
             on_disconnect=[Action.from_dict(a) for a in d.get("on_disconnect", [])],
         )
@@ -120,6 +128,7 @@ class Device:
             "match_type": self.match_type,
             "confirm_on_disconnect": self.confirm_on_disconnect,
             "execution_condition": self.execution_condition,
+            "enabled": self.enabled,
             "on_connect": [a.to_dict() for a in self.on_connect],
             "on_disconnect": [a.to_dict() for a in self.on_disconnect],
         }
@@ -142,16 +151,23 @@ class Config:
     display_switch_command: str = ""
     display_switch_workdir: str = ""
     start_minimized: bool = True
+    start_with_windows: bool = False
+    start_in_tray: bool = True
     hidden_scan_ids: list[str] = field(default_factory=list)
     devices: list[Device] = field(default_factory=list)
 
     @classmethod
     def load(cls) -> "Config":
         if not CONFIG_PATH.exists():
-            log.warning("config.json introuvable, configuration vide créée.")
-            c = cls()
-            c.save()
-            return c
+            if CONFIG_EXAMPLE_PATH.exists():
+                import shutil
+                shutil.copy2(CONFIG_EXAMPLE_PATH, CONFIG_PATH)
+                log.info("config.json créé à partir de config.example.json.")
+            else:
+                log.warning("config.json introuvable, configuration vide créée.")
+                c = cls()
+                c.save()
+                return c
         with open(CONFIG_PATH, encoding="utf-8") as f:
             data = json.load(f)
         g = data.get("general", {})
@@ -163,6 +179,8 @@ class Config:
             display_switch_command=g.get("display_switch_command", ""),
             display_switch_workdir=g.get("display_switch_workdir", ""),
             start_minimized=g.get("start_minimized", True),
+            start_with_windows=g.get("start_with_windows", False),
+            start_in_tray=g.get("start_in_tray", True),
             hidden_scan_ids=g.get("hidden_scan_ids", []),
             devices=[Device.from_dict(d) for d in data.get("devices", [])],
         )
@@ -177,6 +195,8 @@ class Config:
                 "display_switch_command": self.display_switch_command,
                 "display_switch_workdir": self.display_switch_workdir,
                 "start_minimized": self.start_minimized,
+                "start_with_windows": self.start_with_windows,
+                "start_in_tray": self.start_in_tray,
                 "hidden_scan_ids": self.hidden_scan_ids,
             },
             "devices": [d.to_dict() for d in self.devices],
@@ -545,8 +565,8 @@ class Engine:
         if first_run:
             for device in self.config.devices:
                 device.was_connected = device.connected
-                # Lancer les actions dans un thread dédié pour ne pas bloquer le scan
-                import threading
+                if not device.enabled:
+                    continue
                 threading.Thread(
                     target=self._execute_actions,
                     args=(device, device.on_connect if device.connected else device.on_disconnect),
@@ -556,10 +576,15 @@ class Engine:
             for device in self.config.devices:
                 changed = device.connected != device.was_connected
 
+                if not device.enabled:
+                    device.was_connected = device.connected
+                    if changed and self.on_device_changed:
+                        self.on_device_changed(device)
+                    continue
+
                 if device.connected and not device.was_connected:
                     log.info(f"Connecté : {device.name}")
                     self._notify("Connecté", f"{device.name} détecté")
-                    import threading
                     threading.Thread(
                         target=self._execute_actions,
                         args=(device, device.on_connect),
@@ -569,12 +594,9 @@ class Engine:
                 elif not device.connected and device.was_connected:
                     self._notify("Déconnecté", f"{device.name} retiré")
                     if device.confirm_on_disconnect and self.on_confirm_needed:
-                        # Demander confirmation depuis l'UI (thread-safe via le callback)
-                        # Le callback est responsable d'utiliser QTimer.singleShot côté UI
                         confirmed = self.on_confirm_needed(device)
                         if confirmed:
                             log.info(f"Déconnecté (confirmé) : {device.name}")
-                            import threading
                             threading.Thread(
                                 target=self._execute_actions,
                                 args=(device, device.on_disconnect),
@@ -584,7 +606,6 @@ class Engine:
                             log.warning(f"Déconnexion annulée : {device.name}")
                     else:
                         log.info(f"Déconnecté : {device.name}")
-                        import threading
                         threading.Thread(
                             target=self._execute_actions,
                             args=(device, device.on_disconnect),
@@ -593,7 +614,6 @@ class Engine:
 
                 device.was_connected = device.connected
 
-                # Fix #1 : ne déclencher on_device_changed QUE si l'état a changé
                 if changed and self.on_device_changed:
                     self.on_device_changed(device)
 
@@ -708,3 +728,92 @@ class Engine:
             winreg.CloseKey(key)
         except Exception as e:
             log.error(f"Erreur registre taskbar : {e}")
+
+
+# ---------------------------------------------------------------------------
+# Démarrage avec Windows (registre Run)
+# ---------------------------------------------------------------------------
+_STARTUP_REG_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_STARTUP_APP_NAME = "USBDetect"
+
+
+def get_exe_path() -> str:
+    """Retourne le chemin de l'exécutable ou du script pour le démarrage."""
+    if getattr(sys, "frozen", False):
+        return sys.executable
+    return f'"{sys.executable}" "{Path(__file__).parent / "main.py"}"'
+
+
+def set_startup_enabled(enabled: bool):
+    """Ajoute ou supprime USB Detect du démarrage Windows."""
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _STARTUP_REG_KEY,
+            0, winreg.KEY_SET_VALUE
+        )
+        if enabled:
+            winreg.SetValueEx(key, _STARTUP_APP_NAME, 0, winreg.REG_SZ, get_exe_path())
+            log.info("Démarrage avec Windows activé.")
+        else:
+            try:
+                winreg.DeleteValue(key, _STARTUP_APP_NAME)
+            except FileNotFoundError:
+                pass
+            log.info("Démarrage avec Windows désactivé.")
+        winreg.CloseKey(key)
+    except Exception as e:
+        log.error(f"Erreur registre startup : {e}")
+
+
+def is_startup_enabled() -> bool:
+    """Vérifie si USB Detect est dans le démarrage Windows."""
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _STARTUP_REG_KEY,
+            0, winreg.KEY_READ
+        )
+        try:
+            winreg.QueryValueEx(key, _STARTUP_APP_NAME)
+            winreg.CloseKey(key)
+            return True
+        except FileNotFoundError:
+            winreg.CloseKey(key)
+            return False
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Vérification des mises à jour GitHub
+# ---------------------------------------------------------------------------
+def check_for_update(callback: Optional[Callable] = None):
+    """Vérifie si une nouvelle version est disponible sur GitHub.
+
+    Appelle callback(latest_version, download_url) si une mise à jour est dispo,
+    ou callback(None, None) sinon. Exécuté dans un thread pour ne pas bloquer l'UI.
+    """
+    def _check():
+        try:
+            import urllib.request
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+            req = urllib.request.Request(url, headers={"Accept": "application/vnd.github.v3+json"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            tag = data.get("tag_name", "").lstrip("vV")
+            html_url = data.get("html_url", "")
+            if tag and tag != APP_VERSION:
+                log.info(f"Mise à jour disponible : v{tag} (actuel: v{APP_VERSION})")
+                if callback:
+                    callback(tag, html_url)
+            else:
+                log.info(f"Aucune mise à jour (v{APP_VERSION} est à jour).")
+                if callback:
+                    callback(None, None)
+        except Exception as e:
+            log.warning(f"Impossible de vérifier les mises à jour : {e}")
+            if callback:
+                callback(None, None)
+
+    threading.Thread(target=_check, daemon=True).start()
