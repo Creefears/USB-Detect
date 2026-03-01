@@ -16,8 +16,9 @@ from PyQt6.QtWidgets import (
 )
 
 from engine import (
-    APP_VERSION, BASE_DIR, CONFIG_PATH, INSTALL_DIR, Config, Device, Engine,
-    get_device_type, log, check_for_update, download_and_apply_update,
+    APP_VERSION, BASE_DIR, CONFIG_PATH, CHANGELOG, DATA_DIR, INSTALL_DIR,
+    Config, Device, Engine, get_device_type, log,
+    check_for_update, download_and_apply_update,
     set_startup_enabled, is_startup_enabled, check_install_status,
     self_install, self_uninstall, get_installed_version,
 )
@@ -1434,6 +1435,93 @@ class MainWindow(QMainWindow):
 
 
 # ---------------------------------------------------------------------------
+# Premier lancement & Quoi de neuf
+# ---------------------------------------------------------------------------
+_STATE_FILE = DATA_DIR / ".app_state.json"
+
+
+def _load_app_state() -> dict:
+    try:
+        import json
+        return json.loads(_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_app_state(state: dict):
+    import json
+    _STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def _show_first_launch_dialog():
+    """Affiche un message de bienvenue au tout premier lancement."""
+    msg = QMessageBox()
+    msg.setWindowTitle("Bienvenue — USB Detect")
+    msg.setIcon(QMessageBox.Icon.Information)
+    msg.setText(
+        "<h3>Bienvenue dans USB Detect !</h3>"
+        "<p>Ce logiciel a été <b>entièrement concu avec l'aide d'une intelligence artificielle</b>.</p>"
+        "<p>Il est le fruit d'un besoin personnel : je n'ai trouvé aucune alternative satisfaisante "
+        "en ligne pour automatiser des actions en fonction de mes peripheriques USB. "
+        "Pendant longtemps, j'ai utilisé un petit script AutoHotkey bancal et potentiellement "
+        "dangereux pour mon système.</p>"
+        "<p>USB Detect remplace cette solution artisanale par une interface propre, "
+        "fiable et configurable.</p>"
+        "<hr>"
+        "<p><i>Projet open-source — contributions bienvenues sur GitHub.</i></p>"
+    )
+    msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+    msg.exec()
+
+
+def _show_whats_new_dialog(last_version: str):
+    """Affiche les nouveautés depuis la dernière version vue."""
+    from engine import _parse_version
+
+    last_v = _parse_version(last_version) if last_version else (0, 0, 0)
+    new_entries = []
+
+    for ver, changes in sorted(CHANGELOG.items(),
+                                key=lambda x: _parse_version(x[0]),
+                                reverse=True):
+        if _parse_version(ver) > last_v:
+            items = "".join(f"<li>{c}</li>" for c in changes)
+            new_entries.append(f"<h4>v{ver}</h4><ul>{items}</ul>")
+
+    if not new_entries:
+        return
+
+    msg = QMessageBox()
+    msg.setWindowTitle(f"Quoi de neuf — USB Detect v{APP_VERSION}")
+    msg.setIcon(QMessageBox.Icon.Information)
+    msg.setText(
+        "<h3>Nouveautés</h3>"
+        + "".join(new_entries)
+        + "<hr><p><i>Merci d'utiliser USB Detect !</i></p>"
+    )
+    msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+    msg.exec()
+
+
+def _check_first_launch_and_changelog():
+    """Vérifie s'il faut afficher le dialogue premier lancement ou changelog."""
+    state = _load_app_state()
+
+    if not state.get("first_launch_done"):
+        _show_first_launch_dialog()
+        state["first_launch_done"] = True
+        state["last_seen_version"] = APP_VERSION
+        _save_app_state(state)
+        return
+
+    last_seen = state.get("last_seen_version", "0.0.0")
+    if last_seen != APP_VERSION:
+        _show_whats_new_dialog(last_seen)
+        state["last_seen_version"] = APP_VERSION
+        _save_app_state(state)
+
+
+# ---------------------------------------------------------------------------
 # Auto-installation / mise à jour
 # ---------------------------------------------------------------------------
 def _handle_install_or_update():
@@ -1576,6 +1664,9 @@ def main():
         app.setApplicationName("USB Detect")
         app.setQuitOnLastWindowClosed(False)
         app.setStyleSheet(STYLESHEET)
+
+        # Premier lancement / Quoi de neuf
+        _check_first_launch_and_changelog()
 
         config = Config.load()
         engine = Engine(config)

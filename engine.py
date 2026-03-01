@@ -16,10 +16,30 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Callable, Optional
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
+
+# ---------------------------------------------------------------------------
+# Changelog (affiché au premier lancement d'une nouvelle version)
+# ---------------------------------------------------------------------------
+CHANGELOG = {
+    "2.2.0": [
+        "Installation automatique dans Program Files au premier lancement",
+        "Mise à jour intelligente : détecte et propose l'update si version plus récente",
+        "Nettoyage automatique du registre en cas de désinstallation manuelle",
+        "Les données (config, logs) sont stockées dans %APPDATA% (plus de problèmes de permissions)",
+        "Fenêtre 'Quoi de neuf' affichée après chaque mise à jour",
+    ],
+    "2.1.0": [
+        "Détection USB, HID et moniteurs en temps réel",
+        "Actions automatiques configurables (lancer/fermer des apps)",
+        "Démarrage avec Windows et mode system tray",
+        "Vérification automatique des mises à jour GitHub",
+        "Conditions d'exécution (nombre de moniteurs, présence d'autres périphériques)",
+    ],
+}
 
 # ---------------------------------------------------------------------------
 # Chemins
