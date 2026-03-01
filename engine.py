@@ -950,24 +950,60 @@ def get_installed_version() -> Optional[str]:
         return None
 
 
+def _cleanup_orphaned_registry():
+    """Nettoie les entrées registre orphelines (fichiers supprimés manuellement)."""
+    try:
+        import winreg as _wr
+        _wr.DeleteKey(_wr.HKEY_LOCAL_MACHINE,
+                      r"Software\Microsoft\Windows\CurrentVersion\Uninstall\USBDetect")
+        log.info("Entrée registre orpheline nettoyée (Ajout/Suppression).")
+    except Exception:
+        pass
+    try:
+        import winreg as _wr
+        with _wr.OpenKey(_wr.HKEY_CURRENT_USER,
+                         r"Software\Microsoft\Windows\CurrentVersion\Run",
+                         0, _wr.KEY_SET_VALUE) as k:
+            _wr.DeleteValue(k, "USBDetect")
+        log.info("Entrée registre orpheline nettoyée (démarrage auto).")
+    except Exception:
+        pass
+
+
 def check_install_status() -> str:
     """Détermine l'action à effectuer au lancement.
 
     Retourne :
-      'run'     — déjà installé, lancer normalement
-      'install' — première installation
+      'run'     — lancé depuis Program Files, lancer normalement
+      'install' — première installation (ou réinstallation après suppression)
       'update'  — version plus récente que celle installée
-      'older'   — version plus ancienne que celle installée (ne rien faire)
+      'older'   — version plus ancienne que celle installée
+      'same'    — même version déjà installée dans Program Files
     """
     if not getattr(sys, "frozen", False):
         return "run"  # Mode dev
     if is_installed():
         return "run"  # Lancé depuis Program Files
 
+    # --- Pas dans Program Files → vérifier l'état de l'installation ---
     installed_ver = get_installed_version()
-    if installed_ver is None:
+    dest_exe = INSTALL_DIR / "USB Detect.exe"
+    exe_exists = dest_exe.exists()
+
+    # Cas 1 : registre orphelin (entrées existent mais exe supprimé)
+    if installed_ver is not None and not exe_exists:
+        _cleanup_orphaned_registry()
+        return "install"  # Réinstallation propre
+
+    # Cas 2 : aucune trace d'installation
+    if installed_ver is None and not exe_exists:
         return "install"
 
+    # Cas 3 : exe existe mais pas de registre (install partielle)
+    if installed_ver is None and exe_exists:
+        return "install"  # Réinstaller proprement
+
+    # Cas 4 : tout existe → comparer les versions
     current = _parse_version(APP_VERSION)
     installed = _parse_version(installed_ver)
     if current > installed:
@@ -975,7 +1011,7 @@ def check_install_status() -> str:
     elif current < installed:
         return "older"
     else:
-        return "run"  # Même version, juste lancer l'installé
+        return "same"
 
 
 def self_install(is_update: bool = False) -> Optional[str]:

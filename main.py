@@ -1483,14 +1483,20 @@ def _handle_install_or_update():
     status = check_install_status()
 
     if status == "run":
-        return  # Déjà installé ou même version → lancement normal
+        return  # Lancé depuis Program Files → lancement normal
+
+    if status == "same":
+        # Même version installée dans Program Files → lancer celle-là
+        dest = str(INSTALL_DIR / "USB Detect.exe")
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)
+        sys.exit(0)
 
     if status == "older":
         # Version plus ancienne que celle installée → lancer l'installée
         dest = str(INSTALL_DIR / "USB Detect.exe")
-        if Path(dest).exists():
-            import subprocess as _sp
-            _sp.Popen([dest], creationflags=0x00000008)
+        import subprocess as _sp
+        _sp.Popen([dest], creationflags=0x00000008)
         sys.exit(0)
 
     # Première installation ou mise à jour
