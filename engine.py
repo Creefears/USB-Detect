@@ -22,7 +22,11 @@ GITHUB_REPO = "Creefears/USB-Detect"
 # ---------------------------------------------------------------------------
 # Chemins
 # ---------------------------------------------------------------------------
-BASE_DIR    = Path(__file__).parent
+# Quand frozen (.exe PyInstaller), les fichiers sont à côté de l'exe
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config.json"
 CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
 LOG_PATH    = BASE_DIR / "usb_detect.log"

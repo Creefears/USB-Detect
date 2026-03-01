@@ -109,3 +109,6 @@ if __name__ == "__main__":
     install_dependencies()
     generate_ico()
     build_exe()
+    print()
+    print("Pour installer dans Program Files, lancez :")
+    print("  python installer.py")
