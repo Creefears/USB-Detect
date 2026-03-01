@@ -24,15 +24,21 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # ---------------------------------------------------------------------------
 # Chemins
 # ---------------------------------------------------------------------------
-# Quand frozen (.exe PyInstaller), les fichiers sont à côté de l'exe
+# EXE_DIR : dossier de l'exécutable (pour l'icône et les fichiers embarqués)
+# DATA_DIR : dossier de données (config, log, lock) — %APPDATA% en prod
 if getattr(sys, "frozen", False):
-    BASE_DIR = Path(sys.executable).parent
+    EXE_DIR = Path(sys.executable).parent
+    DATA_DIR = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 else:
-    BASE_DIR = Path(__file__).parent
-CONFIG_PATH = BASE_DIR / "config.json"
-CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
-LOG_PATH    = BASE_DIR / "usb_detect.log"
-ICON_PATH   = BASE_DIR / "icon.png"
+    EXE_DIR = Path(__file__).parent
+    DATA_DIR = EXE_DIR  # Mode dev → tout dans le dossier du projet
+
+BASE_DIR = DATA_DIR  # Rétro-compatibilité (lock, etc.)
+CONFIG_PATH = DATA_DIR / "config.json"
+CONFIG_EXAMPLE_PATH = EXE_DIR / "config.example.json"  # Embarqué à côté de l'exe
+LOG_PATH    = DATA_DIR / "usb_detect.log"
+ICON_PATH   = EXE_DIR / "icon.png"
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -855,7 +861,7 @@ def download_and_apply_update(asset_url: str, progress_callback: Optional[Callab
 
                 # Télécharger dans un fichier temporaire
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".exe",
-                                                  dir=str(BASE_DIR))
+                                                  dir=str(DATA_DIR))
                 tmp_path = tmp.name
                 try:
                     while True:
@@ -880,12 +886,12 @@ def download_and_apply_update(asset_url: str, progress_callback: Optional[Callab
                 current_exe = sys.executable
             else:
                 # Mode dev : on place le .exe à côté dans dist/
-                dist_dir = BASE_DIR / "dist"
+                dist_dir = EXE_DIR / "dist"
                 dist_dir.mkdir(exist_ok=True)
                 current_exe = str(dist_dir / "USB Detect.exe")
 
             # Créer un script batch qui remplace l'exe après fermeture
-            bat_path = str(BASE_DIR / "_update.bat")
+            bat_path = str(DATA_DIR / "_update.bat")
             with open(bat_path, "w", encoding="utf-8") as bat:
                 bat.write("@echo off\n")
                 bat.write("echo Mise a jour de USB Detect...\n")
@@ -1014,12 +1020,17 @@ def self_uninstall():
     import shutil
     import winreg as _wr
 
-    # Sauvegarder config sur le bureau
-    config_path = INSTALL_DIR / "config.json"
+    # Sauvegarder config sur le bureau (depuis AppData)
+    appdata_dir = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+    config_path = appdata_dir / "config.json"
     if config_path.exists():
         backup = Path.home() / "Desktop" / "usb_detect_config_backup.json"
         shutil.copy2(str(config_path), str(backup))
         log.info(f"Config sauvegardée : {backup}")
+
+    # Supprimer le dossier AppData
+    if appdata_dir.exists():
+        shutil.rmtree(str(appdata_dir), ignore_errors=True)
 
     # Raccourci menu Démarrer
     start_menu = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / \
@@ -1044,7 +1055,7 @@ def self_uninstall():
     except FileNotFoundError:
         pass
 
-    # Créer un batch qui supprimera le dossier après fermeture de l'exe
+    # Créer un batch qui supprimera le dossier Program Files après fermeture
     bat = INSTALL_DIR / "_cleanup.bat"
     bat.write_text(
         "@echo off\n"
