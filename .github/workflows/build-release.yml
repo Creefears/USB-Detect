@@ -20,10 +20,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pyinstaller Pillow
+      - name: Install Pillow (for icon generation)
+        run: pip install Pillow
 
       - name: Build exe
         run: python build.py

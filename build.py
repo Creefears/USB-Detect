@@ -66,13 +66,17 @@ def generate_ico():
     print(f"Icone generee : {ICO_PATH}")
 
 
+def install_dependencies():
+    """Installe les dépendances du projet et les outils de build."""
+    req_file = BASE_DIR / "requirements.txt"
+    if req_file.exists():
+        print("Installation des dépendances (requirements.txt)...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(req_file)])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
+
+
 def build_exe():
     """Lance PyInstaller pour créer l'exécutable."""
-    try:
-        import PyInstaller
-    except ImportError:
-        print("PyInstaller non installé, tentative d'installation...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -102,5 +106,6 @@ def build_exe():
 
 if __name__ == "__main__":
     print("=== USB Detect — Build ===\n")
+    install_dependencies()
     generate_ico()
     build_exe()
