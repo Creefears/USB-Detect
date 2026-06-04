@@ -23,6 +23,7 @@ from engine import (
     self_install, self_uninstall, get_installed_version,
 )
 from wizard import DeviceWizard
+from i18n import tr, set_language, get_language, init_language, LANGUAGES
 
 # ---------------------------------------------------------------------------
 # Stylesheet global (thème sombre)
@@ -220,7 +221,7 @@ class LogViewer(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("📋  Logs — USB Detect")
+        self.setWindowTitle(tr("📋  Logs — USB Detect"))
         self.setMinimumSize(700, 420)
         self.resize(800, 500)
         self.setWindowFlags(
@@ -253,8 +254,8 @@ class LogViewer(QDialog):
         toolbar.setSpacing(6)
 
         self.filter_edit = QLineEdit()
-        self.filter_edit.setPlaceholderText("🔍  Filtrer les lignes…")
-        self.filter_edit.setToolTip("Affiche uniquement les lignes contenant ce texte")
+        self.filter_edit.setPlaceholderText(tr("🔍  Filtrer les lignes…"))
+        self.filter_edit.setToolTip(tr("Affiche uniquement les lignes contenant ce texte"))
         self.filter_edit.textChanged.connect(self._apply_filter)
         self.filter_edit.setStyleSheet(
             "QLineEdit { background: #22223a; border: 1px solid #3a3a5a; "
@@ -262,13 +263,13 @@ class LogViewer(QDialog):
             "QLineEdit:focus { border-color: #6060cc; }"
         )
 
-        scroll_btn = QPushButton("⬆  Aller en haut")
-        scroll_btn.setToolTip("Défiler jusqu'à la dernière entrée de log")
+        scroll_btn = QPushButton(tr("⬆  Aller en haut"))
+        scroll_btn.setToolTip(tr("Défiler jusqu'à la dernière entrée de log"))
         scroll_btn.setFixedHeight(28)
         scroll_btn.clicked.connect(self._scroll_to_top)
 
-        clear_btn = QPushButton("🗑  Effacer la vue")
-        clear_btn.setToolTip("Vider l'affichage (ne supprime pas le fichier de log)")
+        clear_btn = QPushButton(tr("🗑  Effacer la vue"))
+        clear_btn.setToolTip(tr("Vider l'affichage (ne supprime pas le fichier de log)"))
         clear_btn.setFixedHeight(28)
         clear_btn.setStyleSheet(
             "QPushButton { background: #2a1a1a; border: 1px solid #663333; border-radius: 4px; }"
@@ -304,7 +305,7 @@ class LogViewer(QDialog):
         layout.addWidget(sep2)
 
         # --- Barre de statut ---
-        self.status_lbl = QLabel("⟳  Actualisation auto · 0 lignes")
+        self.status_lbl = QLabel(tr("⟳  Actualisation auto · 0 lignes"))
         self.status_lbl.setStyleSheet("color: #666688; font-size: 8pt;")
         layout.addWidget(self.status_lbl)
 
@@ -314,7 +315,7 @@ class LogViewer(QDialog):
             self._raw_lines = []
             self._last_size = 0
             self.text_view.setHtml(
-                '<span style="color:#666688; font-style:italic;">Aucun log disponible.</span>'
+                f'<span style="color:#666688; font-style:italic;">{tr("Aucun log disponible.")}</span>'
             )
             return
         size = LOG_PATH.stat().st_size
@@ -375,7 +376,10 @@ class LogViewer(QDialog):
         )
 
         n = len(lines)
-        self.status_lbl.setText(f"⟳  Actualisation auto · {n} ligne{'s' if n > 1 else ''}")
+        _lines_word = tr("ligne") if n <= 1 else tr("lignes")
+        self.status_lbl.setText(
+            tr("⟳  Actualisation auto · {n} {lines}").format(n=n, lines=_lines_word)
+        )
 
         # Auto-scroll seulement si on était déjà en haut
         if was_at_top:
@@ -387,14 +391,14 @@ class LogViewer(QDialog):
     def _clear_view(self):
         self._cleared = True
         self.text_view.clear()
-        self.status_lbl.setText("Vue effacée · Cliquez sur ⟳ Scanner pour recharger")
+        self.status_lbl.setText(tr("Vue effacée · Cliquez sur ⟳ Scanner pour recharger"))
         # Ajouter un bouton pour restaurer
-        self.filter_edit.setPlaceholderText("Vue effacée — appuyez sur Entrée pour recharger")
+        self.filter_edit.setPlaceholderText(tr("Vue effacée — appuyez sur Entrée pour recharger"))
         self.filter_edit.returnPressed.connect(self._restore_view)
 
     def _restore_view(self):
         self._cleared = False
-        self.filter_edit.setPlaceholderText("🔍  Filtrer les lignes…")
+        self.filter_edit.setPlaceholderText(tr("🔍  Filtrer les lignes…"))
         try:
             self.filter_edit.returnPressed.disconnect(self._restore_view)
         except Exception:
@@ -420,7 +424,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.config = config
         self._asset_url = ""
-        self.setWindowTitle("Paramètres — USB Detect")
+        self.setWindowTitle(tr("Paramètres — USB Detect"))
         self.setMinimumWidth(460)
         self.setWindowFlags(
             Qt.WindowType.Window |
@@ -436,55 +440,79 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(12)
 
-        title = QLabel("Paramètres")
+        title = QLabel(tr("Paramètres"))
         title.setStyleSheet("font-size: 13pt; font-weight: bold; color: #c0c0ff;")
         layout.addWidget(title)
 
         chk_style = "QCheckBox { color: #d0d0e0; } QCheckBox::indicator { width: 16px; height: 16px; }"
 
+        # --- Langue ---
+        grp_lang = QLabel(tr("Langue"))
+        grp_lang.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
+        layout.addWidget(grp_lang)
+
+        lang_row = QHBoxLayout()
+        lang_row.setSpacing(8)
+        lang_lbl = QLabel(tr("Choisissez la langue de l'interface"))
+        lang_lbl.setStyleSheet("color: #8888aa; font-size: 8pt;")
+        lang_row.addWidget(lang_lbl)
+        lang_row.addStretch()
+
+        from PyQt6.QtWidgets import QComboBox as _QComboBox
+        self.lang_combo = _QComboBox()
+        self._lang_codes = list(LANGUAGES.keys())
+        for code in self._lang_codes:
+            self.lang_combo.addItem(LANGUAGES[code], code)
+        _cur = get_language()
+        if _cur in self._lang_codes:
+            self.lang_combo.setCurrentIndex(self._lang_codes.index(_cur))
+        self.lang_combo.setFixedWidth(140)
+        lang_row.addWidget(self.lang_combo)
+        layout.addLayout(lang_row)
+
         # --- Démarrage ---
-        grp_start = QLabel("Démarrage")
+        grp_start = QLabel(tr("Démarrage"))
         grp_start.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
         layout.addWidget(grp_start)
 
-        self.chk_startup = QCheckBox("Lancer USB Detect au démarrage de Windows")
+        self.chk_startup = QCheckBox(tr("Lancer USB Detect au démarrage de Windows"))
         self.chk_startup.setChecked(self.config.start_with_windows)
         self.chk_startup.setStyleSheet(chk_style)
         layout.addWidget(self.chk_startup)
 
-        self.chk_tray = QCheckBox("Démarrer en arrière-plan (system tray)")
+        self.chk_tray = QCheckBox(tr("Démarrer en arrière-plan (system tray)"))
         self.chk_tray.setChecked(self.config.start_in_tray)
         self.chk_tray.setStyleSheet(chk_style)
         layout.addWidget(self.chk_tray)
 
-        self.chk_minimized = QCheckBox("Démarrer fenêtre minimisée")
+        self.chk_minimized = QCheckBox(tr("Démarrer fenêtre minimisée"))
         self.chk_minimized.setChecked(self.config.start_minimized)
         self.chk_minimized.setStyleSheet(chk_style)
         layout.addWidget(self.chk_minimized)
 
         # --- Notifications ---
-        grp_notif = QLabel("Notifications")
+        grp_notif = QLabel(tr("Notifications"))
         grp_notif.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
         layout.addWidget(grp_notif)
 
-        self.chk_notif = QCheckBox("Activer les notifications")
+        self.chk_notif = QCheckBox(tr("Activer les notifications"))
         self.chk_notif.setChecked(self.config.notifications_enabled)
         self.chk_notif.setStyleSheet(chk_style)
         layout.addWidget(self.chk_notif)
 
-        self.chk_log = QCheckBox("Activer les logs")
+        self.chk_log = QCheckBox(tr("Activer les logs"))
         self.chk_log.setChecked(self.config.log_enabled)
         self.chk_log.setStyleSheet(chk_style)
         layout.addWidget(self.chk_log)
 
         # --- Configuration (import/export) ---
-        grp_cfg = QLabel("Configuration")
+        grp_cfg = QLabel(tr("Configuration"))
         grp_cfg.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
         layout.addWidget(grp_cfg)
 
         cfg_row = QHBoxLayout()
         cfg_row.setSpacing(8)
-        cfg_info = QLabel("Sauvegardez vos macros avant une mise à jour")
+        cfg_info = QLabel(tr("Sauvegardez vos macros avant une mise à jour"))
         cfg_info.setStyleSheet("color: #8888aa; font-size: 8pt;")
         cfg_row.addWidget(cfg_info)
         cfg_row.addStretch()
@@ -495,12 +523,12 @@ class SettingsDialog(QDialog):
             "QPushButton:hover { background: #3a3a5a; }"
         )
 
-        export_btn = QPushButton("Exporter")
+        export_btn = QPushButton(tr("Exporter"))
         export_btn.setStyleSheet(btn_style)
         export_btn.clicked.connect(self._export_config)
         cfg_row.addWidget(export_btn)
 
-        import_btn = QPushButton("Importer")
+        import_btn = QPushButton(tr("Importer"))
         import_btn.setStyleSheet(btn_style)
         import_btn.clicked.connect(self._import_config)
         cfg_row.addWidget(import_btn)
@@ -508,13 +536,13 @@ class SettingsDialog(QDialog):
         layout.addLayout(cfg_row)
 
         # --- Mises à jour ---
-        grp_update = QLabel("Mises à jour")
+        grp_update = QLabel(tr("Mises à jour"))
         grp_update.setStyleSheet("font-size: 10pt; font-weight: bold; color: #8888cc; margin-top: 6px;")
         layout.addWidget(grp_update)
 
         update_row = QHBoxLayout()
         update_row.setSpacing(8)
-        ver_lbl = QLabel(f"Version actuelle : v{APP_VERSION}")
+        ver_lbl = QLabel(tr("Version actuelle : v{v}").format(v=APP_VERSION))
         ver_lbl.setStyleSheet("color: #a0a0c0; font-size: 9pt;")
         update_row.addWidget(ver_lbl)
         update_row.addStretch()
@@ -523,12 +551,12 @@ class SettingsDialog(QDialog):
         self.update_status_lbl.setStyleSheet("color: #66cc88; font-size: 9pt;")
         update_row.addWidget(self.update_status_lbl)
 
-        self.check_update_btn = QPushButton("Vérifier")
+        self.check_update_btn = QPushButton(tr("Vérifier"))
         self.check_update_btn.setStyleSheet(btn_style)
         self.check_update_btn.clicked.connect(self._check_update)
         update_row.addWidget(self.check_update_btn)
 
-        self.download_btn = QPushButton("Installer la mise à jour")
+        self.download_btn = QPushButton(tr("Installer la mise à jour"))
         self.download_btn.setStyleSheet(
             "QPushButton { background: #1a3a1a; border: 1px solid #2a6a2a; border-radius: 4px; "
             "color: #88ee88; padding: 4px 12px; font-size: 9pt; }"
@@ -556,11 +584,11 @@ class SettingsDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        save_btn = QPushButton("Sauvegarder")
+        save_btn = QPushButton(tr("Sauvegarder"))
         save_btn.setObjectName("primary")
         save_btn.clicked.connect(self._save)
 
-        cancel_btn = QPushButton("Annuler")
+        cancel_btn = QPushButton(tr("Annuler"))
         cancel_btn.clicked.connect(self.reject)
 
         btn_row.addStretch()
@@ -571,19 +599,21 @@ class SettingsDialog(QDialog):
     # ---- Import / Export config ----
     def _export_config(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Exporter la configuration", "usb_detect_config.json",
+            self, tr("Exporter la configuration"), "usb_detect_config.json",
             "JSON (*.json)")
         if path:
             import shutil
             try:
                 shutil.copy2(str(CONFIG_PATH), path)
-                QMessageBox.information(self, "Export", f"Configuration exportée vers :\n{path}")
+                QMessageBox.information(self, tr("Export"),
+                    tr("Configuration exportée vers :\n{path}").format(path=path))
             except Exception as e:
-                QMessageBox.warning(self, "Erreur", f"Impossible d'exporter :\n{e}")
+                QMessageBox.warning(self, tr("Erreur"),
+                    tr("Impossible d'exporter :\n{e}").format(e=e))
 
     def _import_config(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Importer une configuration", "",
+            self, tr("Importer une configuration"), "",
             "JSON (*.json)")
         if not path:
             return
@@ -593,34 +623,35 @@ class SettingsDialog(QDialog):
                 data = _json.load(f)
             # Validation minimale
             if "devices" not in data or "general" not in data:
-                QMessageBox.warning(self, "Erreur",
-                    "Ce fichier n'est pas une configuration USB Detect valide.")
+                QMessageBox.warning(self, tr("Erreur"),
+                    tr("Ce fichier n'est pas une configuration USB Detect valide."))
                 return
             import shutil
             shutil.copy2(path, str(CONFIG_PATH))
-            QMessageBox.information(self, "Import",
-                "Configuration importée avec succès.\n"
-                "Redémarrez USB Detect pour appliquer les changements.")
+            QMessageBox.information(self, tr("Import"),
+                tr("Configuration importée avec succès.\n"
+                   "Redémarrez USB Detect pour appliquer les changements."))
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Impossible d'importer :\n{e}")
+            QMessageBox.warning(self, tr("Erreur"),
+                tr("Impossible d'importer :\n{e}").format(e=e))
 
     # ---- Mise à jour ----
     def _check_update(self):
         self.check_update_btn.setEnabled(False)
-        self.update_status_lbl.setText("Vérification…")
+        self.update_status_lbl.setText(tr("Vérification…"))
         self.update_status_lbl.setStyleSheet("color: #8888cc; font-size: 9pt;")
 
         def _on_result(version, url, asset_url):
             if version:
                 self._asset_url = asset_url or ""
-                self.update_signal.emit(f"v{version} disponible !")
+                self.update_signal.emit(tr("v{version} disponible !").format(version=version))
                 if asset_url:
                     self.download_btn.setVisible(True)
                 parent = self.parent()
                 if parent and hasattr(parent, "update_available"):
                     parent.update_available.emit(version, url)
             else:
-                self.update_signal.emit("Vous êtes à jour.")
+                self.update_signal.emit(tr("Vous êtes à jour."))
             self.check_update_btn.setEnabled(True)
 
         check_for_update(_on_result)
@@ -631,13 +662,13 @@ class SettingsDialog(QDialog):
 
     def _download_update(self):
         if not self._asset_url:
-            QMessageBox.warning(self, "Erreur", "Aucun fichier de mise à jour trouvé dans la release.")
+            QMessageBox.warning(self, tr("Erreur"), tr("Aucun fichier de mise à jour trouvé dans la release."))
             return
         self.download_btn.setEnabled(False)
         self.check_update_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("Connexion…")
+        self.progress_bar.setFormat(tr("Connexion…"))
 
         def _progress(pct, status):
             self.progress_signal.emit(pct, status)
@@ -654,14 +685,14 @@ class SettingsDialog(QDialog):
     def _on_download_done(self, success, info):
         if success:
             self.progress_bar.setValue(100)
-            self.progress_bar.setFormat("Prêt ! Redémarrage…")
+            self.progress_bar.setFormat(tr("Prêt ! Redémarrage…"))
             bat_path = info
             reply = QMessageBox.question(
-                self, "Mise à jour prête",
-                "La mise à jour a été téléchargée.\n\n"
-                "USB Detect va se fermer et se relancer automatiquement.\n"
-                "Votre configuration sera conservée.\n\n"
-                "Continuer ?",
+                self, tr("Mise à jour prête"),
+                tr("La mise à jour a été téléchargée.\n\n"
+                   "USB Detect va se fermer et se relancer automatiquement.\n"
+                   "Votre configuration sera conservée.\n\n"
+                   "Continuer ?"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:
                 import subprocess as _sp
@@ -669,13 +700,14 @@ class SettingsDialog(QDialog):
                           creationflags=0x08000000)  # CREATE_NO_WINDOW
                 QApplication.quit()
             else:
-                self.progress_bar.setFormat("Mise à jour en attente")
+                self.progress_bar.setFormat(tr("Mise à jour en attente"))
                 self.download_btn.setEnabled(True)
         else:
             self.progress_bar.setVisible(False)
             self.download_btn.setEnabled(True)
             self.check_update_btn.setEnabled(True)
-            QMessageBox.warning(self, "Erreur de mise à jour", f"Le téléchargement a échoué :\n{info}")
+            QMessageBox.warning(self, tr("Erreur de mise à jour"),
+                tr("Le téléchargement a échoué :\n{info}").format(info=info))
 
     def _save(self):
         self.config.start_with_windows = self.chk_startup.isChecked()
@@ -683,9 +715,21 @@ class SettingsDialog(QDialog):
         self.config.start_minimized = self.chk_minimized.isChecked()
         self.config.notifications_enabled = self.chk_notif.isChecked()
         self.config.log_enabled = self.chk_log.isChecked()
+
+        # Langue : appliquer et prévenir si un redémarrage est nécessaire
+        new_lang = self.lang_combo.currentData()
+        lang_changed = new_lang != get_language()
+        self.config.language = new_lang
+
         self.config.save()
 
         set_startup_enabled(self.config.start_with_windows)
+
+        if lang_changed:
+            set_language(new_lang)
+            QMessageBox.information(
+                self, tr("Langue"),
+                tr("La langue sera appliquée après redémarrage."))
 
         self.accept()
 
@@ -750,7 +794,7 @@ class DeviceCard(QWidget):
         self.dot.setFixedWidth(20)
         self.dot.setFont(QFont("Segoe UI", 13))
         self.dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.dot.setToolTip("Statut de connexion du périphérique")
+        self.dot.setToolTip(tr("Statut de connexion du périphérique"))
 
         # --- Icône selon le type de périphérique ---
         dev_type = get_device_type(self.device.id, self.device.name)
@@ -760,11 +804,11 @@ class DeviceCard(QWidget):
         dev_icon_lbl.setFixedSize(20, 20)
         dev_icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _type_labels = {
-            "monitor": "Moniteur HDMI/DisplayPort", "keyboard": "Clavier",
-            "mouse": "Souris", "hub": "Hub USB", "audio": "Audio",
-            "gamepad": "Manette", "hid": "Périphérique HID", "usb": "Périphérique USB",
+            "monitor": tr("Moniteur HDMI/DisplayPort"), "keyboard": tr("Clavier"),
+            "mouse": tr("Souris"), "hub": tr("Hub USB"), "audio": tr("Audio"),
+            "gamepad": tr("Manette"), "hid": tr("Périphérique HID"), "usb": tr("Périphérique USB"),
         }
-        dev_icon_lbl.setToolTip(_type_labels.get(dev_type, "Périphérique"))
+        dev_icon_lbl.setToolTip(_type_labels.get(dev_type, tr("Périphérique")))
         usb_icon_lbl = dev_icon_lbl  # alias pour le reste du code
 
         # --- Bloc info (nom + ID + compteur d'actions) ---
@@ -778,16 +822,16 @@ class DeviceCard(QWidget):
 
         n_con = len(self.device.on_connect)
         n_dis = len(self.device.on_disconnect)
-        match_labels = {"contains": "contient", "exact": "exact", "regex": "regex"}
+        match_labels = {"contains": tr("contient"), "exact": tr("exact"), "regex": tr("regex")}
         match_txt = match_labels.get(self.device.match_type, self.device.match_type)
 
         # ID tronqué en monospace — tooltip affiche la valeur complète
         _id_full = self.device.id
         _id_disp = (_id_full[:42] + "…") if len(_id_full) > 44 else _id_full
-        self.id_lbl = QLabel(f"ID : {_id_disp}")
+        self.id_lbl = QLabel(tr("ID : {id}").format(id=_id_disp))
         self.id_lbl.setFont(QFont("Consolas", 8))
         self.id_lbl.setStyleSheet("color: #666688;")
-        self.id_lbl.setToolTip(f"Identifiant complet :\n{_id_full}")
+        self.id_lbl.setToolTip(tr("Identifiant complet :\n{id}").format(id=_id_full))
         self.id_lbl.setMinimumWidth(0)
         self.id_lbl.setSizePolicy(_SP.Policy.Ignored, _SP.Policy.Preferred)
 
@@ -797,8 +841,8 @@ class DeviceCard(QWidget):
         self.actions_lbl.setWordWrap(True)
         self.actions_lbl.setMinimumWidth(0)
         self.actions_lbl.setSizePolicy(_SP.Policy.Expanding, _SP.Policy.Preferred)
-        _lbl_con = "connexion" if n_con <= 1 else "connexions"
-        _lbl_dis = "déconnexion" if n_dis <= 1 else "déconnexions"
+        _lbl_con = tr("connexion") if n_con <= 1 else tr("connexions")
+        _lbl_dis = tr("déconnexion") if n_dis <= 1 else tr("déconnexions")
         self.actions_lbl.setText(
             f'<span style="color:#00aa55; font-weight:600;">⚡ {n_con}</span>'
             f'<span style="color:#3a7a55;"> {_lbl_con} &nbsp;</span>'
@@ -824,9 +868,10 @@ class DeviceCard(QWidget):
         test_con_btn.setFixedSize(30, 30)
         n_con_actions = len(self.device.on_connect)
         test_con_btn.setToolTip(
-            f"Simuler une CONNEXION\n"
-            f"{n_con_actions} action{'s' if n_con_actions > 1 else ''} à exécuter\n"
-            "(fonctionne sans brancher le périphérique)"
+            tr("Simuler une CONNEXION\n{n} {actions} à exécuter\n"
+               "(fonctionne sans brancher le périphérique)").format(
+                n=n_con_actions,
+                actions=tr("action") if n_con_actions <= 1 else tr("actions"))
         )
         test_con_btn.setStyleSheet("""
             QPushButton {
@@ -844,9 +889,10 @@ class DeviceCard(QWidget):
         test_dis_btn.setFixedSize(30, 30)
         n_dis_actions = len(self.device.on_disconnect)
         test_dis_btn.setToolTip(
-            f"Simuler une DÉCONNEXION\n"
-            f"{n_dis_actions} action{'s' if n_dis_actions > 1 else ''} à exécuter\n"
-            "(fonctionne sans débrancher le périphérique)"
+            tr("Simuler une DÉCONNEXION\n{n} {actions} à exécuter\n"
+               "(fonctionne sans débrancher le périphérique)").format(
+                n=n_dis_actions,
+                actions=tr("action") if n_dis_actions <= 1 else tr("actions"))
         )
         test_dis_btn.setStyleSheet("""
             QPushButton {
@@ -870,7 +916,7 @@ class DeviceCard(QWidget):
         # --- Bouton ON/OFF (toggle enabled) ---
         self.toggle_btn = QPushButton()
         self.toggle_btn.setFixedSize(32, 32)
-        self.toggle_btn.setToolTip("Activer / Désactiver ce macro")
+        self.toggle_btn.setToolTip(tr("Activer / Désactiver ce macro"))
         self.toggle_btn.clicked.connect(lambda: self.toggle_requested.emit(self.device))
         self._update_toggle_style()
 
@@ -879,7 +925,7 @@ class DeviceCard(QWidget):
         edit_btn.setIcon(icon_edit())
         edit_btn.setIconSize(QSize(16, 16))
         edit_btn.setFixedSize(32, 32)
-        edit_btn.setToolTip("Modifier la configuration de ce périphérique")
+        edit_btn.setToolTip(tr("Modifier la configuration de ce périphérique"))
         edit_btn.setStyleSheet("""
             QPushButton { background: #2a2a4a; border: 1px solid #4040aa; border-radius: 6px; }
             QPushButton:hover { background: #3a3a6a; border-color: #6060cc; }
@@ -891,7 +937,7 @@ class DeviceCard(QWidget):
         del_btn.setIcon(icon_delete())
         del_btn.setIconSize(QSize(16, 16))
         del_btn.setFixedSize(32, 32)
-        del_btn.setToolTip("Supprimer définitivement ce périphérique et ses actions")
+        del_btn.setToolTip(tr("Supprimer définitivement ce périphérique et ses actions"))
         del_btn.setStyleSheet("""
             QPushButton { background: #3a1a1a; border: 1px solid #aa3333; border-radius: 6px; }
             QPushButton:hover { background: #4a2020; border-color: #dd4444; }
@@ -915,13 +961,15 @@ class DeviceCard(QWidget):
             self.setStyleSheet(self.styleSheet() + "\n#DeviceCard { opacity: 0.5; }")
 
         # Tooltip global sur la carte
-        status_txt = "Activé" if self.device.enabled else "Désactivé"
+        status_txt = tr("Activé") if self.device.enabled else tr("Désactivé")
         self.setToolTip(
-            f"Type : {_type_labels.get(dev_type, 'Périphérique')}\n"
-            f"Nom : {self.device.name}\n"
-            f"Identifiant : {self.device.id}\n"
-            f"Correspondance : {self.device.match_type}\n"
-            f"Statut : {status_txt}"
+            tr("Type : {type}\nNom : {name}\nIdentifiant : {id}\n"
+               "Correspondance : {match}\nStatut : {status}").format(
+                type=_type_labels.get(dev_type, tr("Périphérique")),
+                name=self.device.name,
+                id=self.device.id,
+                match=self.device.match_type,
+                status=status_txt)
         )
 
     def _update_toggle_style(self):
@@ -943,7 +991,7 @@ class DeviceCard(QWidget):
     def update_state(self, connected: bool):
         if not self.device.enabled:
             self.dot.setStyleSheet("color: #444455;")
-            self.state_lbl.setText("DÉSACTIVÉ")
+            self.state_lbl.setText(tr("DÉSACTIVÉ"))
             self.state_lbl.setStyleSheet(
                 "color: #555566; background: rgba(80,80,100,0.10); "
                 "border-radius: 4px; padding: 3px 6px; font-size: 8pt; font-weight: bold;"
@@ -953,14 +1001,14 @@ class DeviceCard(QWidget):
         self.name_lbl.setStyleSheet("")
         if connected:
             self.dot.setStyleSheet("color: #00dd77;")
-            self.state_lbl.setText("CONNECTÉ")
+            self.state_lbl.setText(tr("CONNECTÉ"))
             self.state_lbl.setStyleSheet(
                 "color: #00dd77; background: rgba(0,220,120,0.14); "
                 "border-radius: 4px; padding: 3px 6px; font-size: 8pt; font-weight: bold;"
             )
         else:
             self.dot.setStyleSheet("color: #666688;")
-            self.state_lbl.setText("DÉCONNECTÉ")
+            self.state_lbl.setText(tr("DÉCONNECTÉ"))
             self.state_lbl.setStyleSheet(
                 "color: #777799; background: rgba(100,100,150,0.10); "
                 "border-radius: 4px; padding: 3px 6px; font-size: 8pt; font-weight: bold;"
@@ -1035,7 +1083,7 @@ class MainWindow(QMainWindow):
         self.update_lbl.setStyleSheet(
             "color: #66cc88; font-size: 9pt; background: transparent; border: none;"
         )
-        update_btn = QPushButton("Mettre à jour")
+        update_btn = QPushButton(tr("Mettre à jour"))
         update_btn.setStyleSheet(
             "QPushButton { background: #2a5a2a; border: 1px solid #44aa44; border-radius: 4px; "
             "color: #88ee88; padding: 3px 10px; font-size: 9pt; }"
@@ -1063,12 +1111,12 @@ class MainWindow(QMainWindow):
         hdr_lay.setContentsMargins(14, 8, 14, 8)
         hdr_lay.setSpacing(10)
 
-        title_lbl = QLabel(f"USB Detect  v{APP_VERSION}")
+        title_lbl = QLabel(tr("USB Detect  v{v}").format(v=APP_VERSION))
         title_lbl.setStyleSheet(
             "font-size: 12pt; font-weight: bold; color: #c0c0ff; "
             "background: transparent; border: none;"
         )
-        self.summary_lbl = QLabel("Initialisation…")
+        self.summary_lbl = QLabel(tr("Initialisation…"))
         self.summary_lbl.setStyleSheet(
             "color: #555577; font-size: 9pt; background: transparent; border: none;"
         )
@@ -1112,21 +1160,21 @@ class MainWindow(QMainWindow):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        add_btn = QPushButton("＋  Ajouter un périphérique")
+        add_btn = QPushButton(tr("＋  Ajouter un périphérique"))
         add_btn.setObjectName("primary")
-        add_btn.setToolTip("Configurer un nouveau périphérique USB et ses actions automatiques")
+        add_btn.setToolTip(tr("Configurer un nouveau périphérique USB et ses actions automatiques"))
         add_btn.clicked.connect(self._add_device)
 
-        self.scan_lbl = QLabel("⟳  Initialisation…")
+        self.scan_lbl = QLabel(tr("⟳  Initialisation…"))
         self.scan_lbl.setStyleSheet("color: #6666cc; font-size: 9pt;")
-        self.scan_lbl.setToolTip("Scan automatique toutes les 5 secondes via WMI")
+        self.scan_lbl.setToolTip(tr("Scan automatique toutes les 5 secondes via WMI"))
 
-        settings_btn = QPushButton("Paramètres")
-        settings_btn.setToolTip("Ouvrir les paramètres de l'application")
+        settings_btn = QPushButton(tr("Paramètres"))
+        settings_btn.setToolTip(tr("Ouvrir les paramètres de l'application"))
         settings_btn.clicked.connect(self._open_settings)
 
-        log_btn = QPushButton("Logs")
-        log_btn.setToolTip("Ouvrir la visionneuse de logs intégrée")
+        log_btn = QPushButton(tr("Logs"))
+        log_btn.setToolTip(tr("Ouvrir la visionneuse de logs intégrée"))
         log_btn.clicked.connect(self._open_log)
 
         btn_row.addWidget(add_btn)
@@ -1171,14 +1219,14 @@ class MainWindow(QMainWindow):
             icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             icon_lbl.setStyleSheet("font-size: 36pt;")
 
-            text_lbl = QLabel("Aucun périphérique configuré")
+            text_lbl = QLabel(tr("Aucun périphérique configuré"))
             text_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             text_lbl.setStyleSheet("color: #8888aa; font-size: 11pt; font-weight: bold;")
 
             hint_lbl = QLabel(
-                "Cliquez sur  ＋ Ajouter un périphérique  pour commencer.\n"
-                "Chaque périphérique peut déclencher des actions\n"
-                "automatiques à la connexion ou déconnexion USB."
+                tr("Cliquez sur  ＋ Ajouter un périphérique  pour commencer.\n"
+                   "Chaque périphérique peut déclencher des actions\n"
+                   "automatiques à la connexion ou déconnexion USB.")
             )
             hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             hint_lbl.setStyleSheet("color: #555577; font-size: 9pt; line-height: 150%;")
@@ -1199,17 +1247,17 @@ class MainWindow(QMainWindow):
         menu = QMenu()
         menu.setStyleSheet(STYLESHEET)
 
-        show_action = QAction("Afficher", self)
+        show_action = QAction(tr("Afficher"), self)
         show_action.triggered.connect(self._show_window)
-        add_action = QAction("Ajouter un périphérique", self)
+        add_action = QAction(tr("Ajouter un périphérique"), self)
         add_action.triggered.connect(self._add_device)
-        settings_action = QAction("Paramètres", self)
+        settings_action = QAction(tr("Paramètres"), self)
         settings_action.triggered.connect(self._open_settings)
-        reload_action = QAction("Recharger la config", self)
+        reload_action = QAction(tr("Recharger la config"), self)
         reload_action.triggered.connect(self._reload_config)
-        log_action = QAction("Ouvrir les logs", self)
+        log_action = QAction(tr("Ouvrir les logs"), self)
         log_action.triggered.connect(self._open_log)
-        quit_action = QAction("Quitter", self)
+        quit_action = QAction(tr("Quitter"), self)
         quit_action.triggered.connect(self._quit)
 
         menu.addAction(show_action)
@@ -1230,11 +1278,12 @@ class MainWindow(QMainWindow):
         n_total = len(self.config.devices)
         n_con = len(connected)
         if n_con == 0:
-            tip = f"USB Detect — {n_total} périphérique(s), aucun connecté"
+            tip = tr("USB Detect — {n} périphérique(s), aucun connecté").format(n=n_total)
         else:
             names = ", ".join(connected[:3])
             suffix = f" (+{n_con - 3})" if n_con > 3 else ""
-            tip = f"USB Detect — {n_con}/{n_total} connecté(s)\n{names}{suffix}"
+            tip = tr("USB Detect — {c}/{n} connecté(s)\n{names}{suffix}").format(
+                c=n_con, n=n_total, names=names, suffix=suffix)
         self.tray.setToolTip(tip)
 
     def _on_tray_activated(self, reason):
@@ -1260,12 +1309,19 @@ class MainWindow(QMainWindow):
         n = len(self.config.devices)
         n_con = sum(1 for d in self.config.devices if d.connected)
         if n == 0:
-            txt, color = "Aucun périphérique configuré", "#444466"
+            txt, color = tr("Aucun périphérique configuré"), "#444466"
         elif n_con == 0:
-            txt = f"{n} périphérique{'s' if n > 1 else ''}  ·  aucun connecté"
+            key = "{n} périphérique  ·  aucun connecté" if n <= 1 else "{n} périphériques  ·  aucun connecté"
+            txt = tr(key).format(n=n)
             color = "#555577"
         else:
-            txt = f"{n} périphérique{'s' if n > 1 else ''}  ·  {n_con} connecté{'s' if n_con > 1 else ''}"
+            if n <= 1:
+                key = "{n} périphérique  ·  {c} connecté"
+            elif n_con <= 1:
+                key = "{n} périphériques  ·  {c} connecté"
+            else:
+                key = "{n} périphériques  ·  {c} connectés"
+            txt = tr(key).format(n=n, c=n_con)
             color = "#44aa77"
         self.summary_lbl.setText(txt)
         self.summary_lbl.setStyleSheet(
@@ -1275,7 +1331,7 @@ class MainWindow(QMainWindow):
     def _on_scan_done(self):
         from datetime import datetime
         now = datetime.now().strftime("%H:%M:%S")
-        self.scan_lbl.setText(f"⟳  Dernier scan : {now}")
+        self.scan_lbl.setText(tr("⟳  Dernier scan : {time}").format(time=now))
         self.scan_lbl.setStyleSheet("color: #44aa88; font-size: 9pt;")
 
         any_connected = any(d.connected for d in self.config.devices)
@@ -1300,7 +1356,8 @@ class MainWindow(QMainWindow):
         reply = QMessageBox.question(
             None,
             "USB Detect",
-            f"{device.name} a été déconnecté.\n\nFermer les applications associées ?",
+            tr("{name} a été déconnecté.\n\nFermer les applications associées ?").format(
+                name=device.name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
         )
@@ -1323,7 +1380,8 @@ class MainWindow(QMainWindow):
             self.config.save()
             self._rebuild_cards()
             log.info(f"Périphérique ajouté : {dlg.result_device.name}")
-            self._notify("Périphérique ajouté", f"{dlg.result_device.name} configuré.")
+            self._notify(tr("Périphérique ajouté"),
+                         tr("{name} configuré.").format(name=dlg.result_device.name))
 
     def _edit_device(self, device: Device):
         dlg = DeviceWizard(self.config, device=device, parent=self)
@@ -1335,8 +1393,8 @@ class MainWindow(QMainWindow):
 
     def _delete_device(self, device: Device):
         reply = QMessageBox.question(
-            self, "Supprimer",
-            f"Supprimer « {device.name} » et toutes ses actions ?",
+            self, tr("Supprimer"),
+            tr("Supprimer « {name} » et toutes ses actions ?").format(name=device.name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
@@ -1352,13 +1410,14 @@ class MainWindow(QMainWindow):
         self._rebuild_cards()
         state = "activé" if device.enabled else "désactivé"
         log.info(f"Macro {state} : {device.name}")
-        self._notify("USB Detect", f"{device.name} {state}")
+        msg_key = "{name} activé" if device.enabled else "{name} désactivé"
+        self._notify("USB Detect", tr(msg_key).format(name=device.name))
 
     def _test_connect(self, device: Device):
         """Déclenche manuellement les actions de connexion, indépendamment de l'état réel."""
         import threading
         log.info(f"[TEST] Actions de connexion pour : {device.name}")
-        self._notify("Test", f"Simulation connexion : {device.name}")
+        self._notify(tr("Test"), tr("Simulation connexion : {name}").format(name=device.name))
         threading.Thread(
             target=self.engine._execute_actions,
             args=(device, device.on_connect),
@@ -1369,7 +1428,7 @@ class MainWindow(QMainWindow):
         """Déclenche manuellement les actions de déconnexion, indépendamment de l'état réel."""
         import threading
         log.info(f"[TEST] Actions de déconnexion pour : {device.name}")
-        self._notify("Test", f"Simulation déconnexion : {device.name}")
+        self._notify(tr("Test"), tr("Simulation déconnexion : {name}").format(name=device.name))
         threading.Thread(
             target=self.engine._execute_actions,
             args=(device, device.on_disconnect),
@@ -1384,7 +1443,7 @@ class MainWindow(QMainWindow):
         self._rebuild_cards()
         self._update_tray_tooltip()
         log.info("Configuration rechargée.")
-        self._notify("USB Detect", "Configuration rechargée.")
+        self._notify("USB Detect", tr("Configuration rechargée."))
 
     def _open_log(self):
         if self._log_viewer and self._log_viewer.isVisible():
@@ -1400,7 +1459,7 @@ class MainWindow(QMainWindow):
         dlg.setStyleSheet(STYLESHEET)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             log.info("Paramètres sauvegardés.")
-            self._notify("USB Detect", "Paramètres sauvegardés.")
+            self._notify("USB Detect", tr("Paramètres sauvegardés."))
 
     # ---- Mise à jour GitHub ----
     def _on_update_result(self, version, url, asset_url=None):
@@ -1411,7 +1470,8 @@ class MainWindow(QMainWindow):
     def _show_update_banner(self, version: str, url: str):
         """Affiche la bannière de mise à jour dans l'UI."""
         self._update_url = url
-        self.update_lbl.setText(f"Nouvelle version disponible : v{version}")
+        self.update_lbl.setText(
+            tr("Nouvelle version disponible : v{version}").format(version=version))
         self.update_banner.setVisible(True)
 
     def _open_update_url(self):
@@ -1429,7 +1489,7 @@ class MainWindow(QMainWindow):
         if not getattr(self, "_close_notified", False):
             self._close_notified = True
             self.tray.showMessage(
-                "USB Detect", "Toujours actif dans la barre des tâches.",
+                "USB Detect", tr("Toujours actif dans la barre des tâches."),
                 QSystemTrayIcon.MessageIcon.Information, 2000,
             )
 
@@ -1456,9 +1516,9 @@ def _save_app_state(state: dict):
 def _show_first_launch_dialog():
     """Affiche un message de bienvenue au tout premier lancement."""
     msg = QMessageBox()
-    msg.setWindowTitle("Bienvenue — USB Detect")
+    msg.setWindowTitle(tr("Bienvenue — USB Detect"))
     msg.setIcon(QMessageBox.Icon.Information)
-    msg.setText(
+    msg.setText(tr(
         "<h3>Bienvenue dans USB Detect !</h3>"
         "<p>Ce logiciel a été <b>entièrement concu avec l'aide d'une intelligence artificielle</b>.</p>"
         "<p>Il est le fruit d'un besoin personnel : je n'ai trouvé aucune alternative satisfaisante "
@@ -1469,7 +1529,7 @@ def _show_first_launch_dialog():
         "fiable et configurable.</p>"
         "<hr>"
         "<p><i>Projet open-source — contributions bienvenues sur GitHub.</i></p>"
-    )
+    ))
     msg.setStandardButtons(QMessageBox.StandardButton.Ok)
     msg.exec()
 
@@ -1492,12 +1552,11 @@ def _show_whats_new_dialog(last_version: str):
         return
 
     msg = QMessageBox()
-    msg.setWindowTitle(f"Quoi de neuf — USB Detect v{APP_VERSION}")
+    msg.setWindowTitle(tr("Quoi de neuf — USB Detect v{v}").format(v=APP_VERSION))
     msg.setIcon(QMessageBox.Icon.Information)
     msg.setText(
-        "<h3>Nouveautés</h3>"
-        + "".join(new_entries)
-        + "<hr><p><i>Merci d'utiliser USB Detect !</i></p>"
+        tr("<h3>Nouveautés</h3>{entries}<hr><p><i>Merci d'utiliser USB Detect !</i></p>").format(
+            entries="".join(new_entries))
     )
     msg.setStandardButtons(QMessageBox.StandardButton.Ok)
     msg.exec()
@@ -1556,15 +1615,15 @@ def _handle_install_or_update():
         app = QApplication(sys.argv)
         app.setStyleSheet(STYLESHEET)
         reply = QMessageBox.question(
-            None, "USB Detect — Désinstallation",
-            "Voulez-vous désinstaller USB Detect ?\n\n"
-            "Votre configuration (macros) sera sauvegardée sur le bureau.",
+            None, tr("USB Detect — Désinstallation"),
+            tr("Voulez-vous désinstaller USB Detect ?\n\n"
+               "Votre configuration (macros) sera sauvegardée sur le bureau."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             self_uninstall()
-            QMessageBox.information(None, "Désinstallation terminée",
-                "USB Detect a été désinstallé.\n"
-                "Votre config a été sauvegardée sur le bureau.")
+            QMessageBox.information(None, tr("Désinstallation terminée"),
+                tr("USB Detect a été désinstallé.\n"
+                   "Votre config a été sauvegardée sur le bureau."))
         sys.exit(0)
 
     # Vérifier le statut d'installation
@@ -1593,23 +1652,22 @@ def _handle_install_or_update():
 
     if status == "install":
         reply = QMessageBox.question(
-            None, "USB Detect — Installation",
-            f"Bienvenue ! USB Detect va s'installer dans :\n"
-            f"{INSTALL_DIR}\n\n"
-            f"Un raccourci sera créé dans le menu Démarrer\n"
-            f"et l'application apparaîtra dans vos programmes.\n\n"
-            f"Continuer ?",
+            None, tr("USB Detect — Installation"),
+            tr("Bienvenue ! USB Detect va s'installer dans :\n{dir}\n\n"
+               "Un raccourci sera créé dans le menu Démarrer\n"
+               "et l'application apparaîtra dans vos programmes.\n\n"
+               "Continuer ?").format(dir=INSTALL_DIR),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         flag = "--install"
     else:  # status == "update"
         old_ver = get_installed_version() or "?"
         reply = QMessageBox.question(
-            None, "USB Detect — Mise à jour",
-            f"Une version plus récente va être installée :\n\n"
-            f"  Version installée : v{old_ver}\n"
-            f"  Nouvelle version  : v{APP_VERSION}\n\n"
-            f"Votre configuration (macros) sera conservée.\n\n"
-            f"Continuer ?",
+            None, tr("USB Detect — Mise à jour"),
+            tr("Une version plus récente va être installée :\n\n"
+               "  Version installée : v{old}\n"
+               "  Nouvelle version  : v{new}\n\n"
+               "Votre configuration (macros) sera conservée.\n\n"
+               "Continuer ?").format(old=old_ver, new=APP_VERSION),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         flag = "--update"
 
@@ -1634,6 +1692,9 @@ def _handle_install_or_update():
 # Point d'entrée
 # ---------------------------------------------------------------------------
 def main():
+    # Langue : initialisée tôt (config.json > locale système > fr)
+    init_language()
+
     # Auto-installation / mise à jour / désinstallation
     _handle_install_or_update()
 
@@ -1645,7 +1706,7 @@ def main():
             import psutil
             if psutil.pid_exists(pid):
                 app = QApplication(sys.argv)
-                QMessageBox.warning(None, "USB Detect", "Une instance est déjà en cours d'exécution.")
+                QMessageBox.warning(None, "USB Detect", tr("Une instance est déjà en cours d'exécution."))
                 sys.exit(1)
             else:
                 lock_path.unlink()

@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from engine import Action, Config, Device, get_device_type, is_internal_device, scan_usb_list
+from i18n import tr
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +147,7 @@ class ActionRow(QWidget):
 
         self.type_box = QComboBox()
         for label, value in self._TYPE_ITEMS:
-            self.type_box.addItem(label, value)
+            self.type_box.addItem(tr(label), value)
         _idx = next(
             (i for i in range(self.type_box.count())
              if self.type_box.itemData(i) == self.action.type), 0
@@ -157,19 +158,19 @@ class ActionRow(QWidget):
         self._update_type_tooltip(self.action.type)
 
         self.proc_edit = QLineEdit(self.action.process)
-        self.proc_edit.setPlaceholderText("Processus (ex: opera.exe)")
-        self.proc_edit.setToolTip("Nom exact du processus Windows (ex : opera.exe, Discord.exe)")
+        self.proc_edit.setPlaceholderText(tr("Processus (ex: opera.exe)"))
+        self.proc_edit.setToolTip(tr("Nom exact du processus Windows (ex : opera.exe, Discord.exe)"))
 
         self.path_edit = QLineEdit(self.action.path)
-        self.path_edit.setPlaceholderText("Chemin ou commande")
-        self.path_edit.setToolTip("Chemin complet vers l'exécutable ou la commande à lancer")
+        self.path_edit.setPlaceholderText(tr("Chemin ou commande"))
+        self.path_edit.setToolTip(tr("Chemin complet vers l'exécutable ou la commande à lancer"))
 
         # Bouton parcourir (stocké comme attribut pour contrôler la visibilité)
         self.browse_btn = QPushButton()
         self.browse_btn.setIcon(_icon_browse())
         self.browse_btn.setIconSize(QSize(15, 15))
         self.browse_btn.setFixedSize(30, 28)
-        self.browse_btn.setToolTip("Parcourir pour choisir un fichier")
+        self.browse_btn.setToolTip(tr("Parcourir pour choisir un fichier"))
         self.browse_btn.setStyleSheet("""
             QPushButton { background: #2a2a4a; border: 1px solid #4040aa; border-radius: 5px; }
             QPushButton:hover  { background: #3a3a6a; border-color: #6060cc; }
@@ -183,7 +184,7 @@ class ActionRow(QWidget):
         self.adv_btn.setIconSize(QSize(14, 14))
         self.adv_btn.setFixedSize(30, 28)
         self.adv_btn.setCheckable(True)
-        self.adv_btn.setToolTip("Options avancées : masquage forcé, délai, condition")
+        self.adv_btn.setToolTip(tr("Options avancées : masquage forcé, délai, condition"))
         self.adv_btn.setStyleSheet("""
             QPushButton { background: #2a2a4a; border: 1px solid #4040aa; border-radius: 5px; }
             QPushButton:checked { background: #5050aa; border-color: #8080ff; }
@@ -196,7 +197,7 @@ class ActionRow(QWidget):
         remove_btn.setIcon(_icon_remove())
         remove_btn.setIconSize(QSize(15, 15))
         remove_btn.setFixedSize(30, 28)
-        remove_btn.setToolTip("Supprimer cette action")
+        remove_btn.setToolTip(tr("Supprimer cette action"))
         remove_btn.setStyleSheet("""
             QPushButton { background: #3a1a1a; border: 1px solid #aa3333; border-radius: 5px; }
             QPushButton:hover  { background: #4a2020; border-color: #dd4444; }
@@ -227,7 +228,7 @@ class ActionRow(QWidget):
             chip = QPushButton(arg)
             chip.setFixedHeight(22)
             chip.setCursor(Qt.CursorShape.PointingHandCursor)
-            chip.setToolTip(tip)
+            chip.setToolTip(tr(tip))
             chip.setStyleSheet("""
                 QPushButton {
                     background: #162416; border: 1px solid #2a5a2a;
@@ -241,11 +242,11 @@ class ActionRow(QWidget):
             args_row.addWidget(chip)
 
         self.args_edit = QLineEdit(self.action.args)
-        self.args_edit.setPlaceholderText("Paramètres supplémentaires…")
-        self.args_edit.setToolTip(
+        self.args_edit.setPlaceholderText(tr("Paramètres supplémentaires…"))
+        self.args_edit.setToolTip(tr(
             "Arguments passés à l'exécutable au lancement.\n"
             "Cliquez sur un raccourci à gauche pour l'ajouter."
-        )
+        ))
         self.args_edit.setStyleSheet(
             "QLineEdit { background: #1e1e30; border: 1px solid #3a3a5a; "
             "border-radius: 4px; padding: 3px 6px; color: #c0c0e0; font-size: 9pt; }"
@@ -268,19 +269,19 @@ class ActionRow(QWidget):
         adv_row1 = QHBoxLayout()
         adv_row1.setSpacing(12)
 
-        self.start_hidden_check = QCheckBox("Masquage forcé  (si --minimized absent)")
+        self.start_hidden_check = QCheckBox(tr("Masquage forcé  (si --minimized absent)"))
         self.start_hidden_check.setChecked(self.action.start_hidden)
-        self.start_hidden_check.setToolTip(
+        self.start_hidden_check.setToolTip(tr(
             "Cache la fenêtre via Windows, puis envoie WM_CLOSE dès que\n"
             "le CPU du processus est idle (initialisation terminée).\n"
             "À utiliser uniquement si l'app ne supporte pas --minimized.\n\n"
             "⚠ Si l'icône systray ne répond plus, désactivez cette option."
-        )
+        ))
         self.start_hidden_check.setStyleSheet("color: #aaaacc; font-size: 9pt;")
         adv_row1.addWidget(self.start_hidden_check)
         adv_row1.addStretch()
 
-        delay_lbl = QLabel("Délai après (s) :")
+        delay_lbl = QLabel(tr("Délai après (s) :"))
         delay_lbl.setStyleSheet("color: #aaaacc; font-size: 9pt;")
         self.sleep_spin = QDoubleSpinBox()
         self.sleep_spin.setRange(0, 60)
@@ -288,7 +289,7 @@ class ActionRow(QWidget):
         self.sleep_spin.setDecimals(1)
         self.sleep_spin.setValue(self.action.post_sleep or 0)
         self.sleep_spin.setFixedWidth(65)
-        self.sleep_spin.setToolTip("Pause après l'action avant la suivante (secondes)")
+        self.sleep_spin.setToolTip(tr("Pause après l'action avant la suivante (secondes)"))
         adv_row1.addWidget(delay_lbl)
         adv_row1.addWidget(self.sleep_spin)
         adv_outer.addLayout(adv_row1)
@@ -296,16 +297,16 @@ class ActionRow(QWidget):
         cond_edit_row = QHBoxLayout()
         cond_edit_row.setSpacing(6)
 
-        cond_lbl = QLabel("Condition :")
+        cond_lbl = QLabel(tr("Condition :"))
         cond_lbl.setStyleSheet("color: #aaaacc; font-size: 9pt;")
         cond_lbl.setFixedWidth(72)
         cond_edit_row.addWidget(cond_lbl)
 
         self.cond_edit = QLineEdit(self.action.condition)
-        self.cond_edit.setPlaceholderText("device_present:Nom  &&  device_absent:Autre  &&  monitors>=2")
-        self.cond_edit.setToolTip(
+        self.cond_edit.setPlaceholderText(tr("device_present:Nom  &&  device_absent:Autre  &&  monitors>=2"))
+        self.cond_edit.setToolTip(tr(
             "Conditions séparées par &&  (toutes doivent être vraies)"
-        )
+        ))
         cond_edit_row.addWidget(self.cond_edit, stretch=1)
         adv_outer.addLayout(cond_edit_row)
 
@@ -313,12 +314,12 @@ class ActionRow(QWidget):
         builder_row.setSpacing(6)
 
         self.cond_builder_type = QComboBox()
-        self.cond_builder_type.addItems(["Périphérique présent", "Périphérique absent", "Moniteurs ≥"])
+        self.cond_builder_type.addItems([tr("Périphérique présent"), tr("Périphérique absent"), tr("Moniteurs ≥")])
         self.cond_builder_type.setFixedWidth(150)
         builder_row.addWidget(self.cond_builder_type)
 
         self.cond_builder_name = QLineEdit()
-        self.cond_builder_name.setPlaceholderText("Nom du périphérique")
+        self.cond_builder_name.setPlaceholderText(tr("Nom du périphérique"))
         builder_row.addWidget(self.cond_builder_name)
 
         self.cond_builder_monitors = QSpinBox()
@@ -332,9 +333,9 @@ class ActionRow(QWidget):
         self.cond_builder_op.setFixedWidth(60)
         builder_row.addWidget(self.cond_builder_op)
 
-        builder_add_btn = QPushButton("Ajouter")
+        builder_add_btn = QPushButton(tr("Ajouter"))
         builder_add_btn.setFixedHeight(24)
-        builder_add_btn.setToolTip("Ajouter la condition construite à la liste")
+        builder_add_btn.setToolTip(tr("Ajouter la condition construite à la liste"))
         builder_add_btn.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #2a2a3e; border: 1px solid #3a3a5a; border-radius: 4px; padding: 0 10px; }"
             "QPushButton:hover { background: #3a3a5a; border-color: #5050aa; }"
@@ -344,9 +345,9 @@ class ActionRow(QWidget):
 
         builder_row.addStretch()
 
-        add_cond_present = QPushButton("＋ présent")
+        add_cond_present = QPushButton(tr("＋ présent"))
         add_cond_present.setFixedHeight(24)
-        add_cond_present.setToolTip("Ajouter : si ce périphérique est connecté")
+        add_cond_present.setToolTip(tr("Ajouter : si ce périphérique est connecté"))
         add_cond_present.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #1a2a1a; border: 1px solid #336633; border-radius: 4px; padding: 0 6px; }"
             "QPushButton:hover { background: #1a3a1a; border-color: #55aa55; }"
@@ -354,9 +355,9 @@ class ActionRow(QWidget):
         add_cond_present.clicked.connect(lambda: self._append_condition("device_present:"))
         builder_row.addWidget(add_cond_present)
 
-        add_cond_absent = QPushButton("＋ absent")
+        add_cond_absent = QPushButton(tr("＋ absent"))
         add_cond_absent.setFixedHeight(24)
-        add_cond_absent.setToolTip("Ajouter : si ce périphérique n'est PAS connecté")
+        add_cond_absent.setToolTip(tr("Ajouter : si ce périphérique n'est PAS connecté"))
         add_cond_absent.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #2a1a1a; border: 1px solid #663333; border-radius: 4px; padding: 0 6px; }"
             "QPushButton:hover { background: #3a1a1a; border-color: #aa5555; }"
@@ -364,9 +365,9 @@ class ActionRow(QWidget):
         add_cond_absent.clicked.connect(lambda: self._append_condition("device_absent:"))
         builder_row.addWidget(add_cond_absent)
 
-        add_monitors_btn = QPushButton("＋ ≥2 écrans")
+        add_monitors_btn = QPushButton(tr("＋ ≥2 écrans"))
         add_monitors_btn.setFixedHeight(24)
-        add_monitors_btn.setToolTip("Ajouter : si au moins 2 écrans sont connectés")
+        add_monitors_btn.setToolTip(tr("Ajouter : si au moins 2 écrans sont connectés"))
         add_monitors_btn.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #1a1a2a; border: 1px solid #334466; border-radius: 4px; padding: 0 6px; }"
             "QPushButton:hover { background: #1a1a3a; border-color: #5566aa; }"
@@ -381,7 +382,7 @@ class ActionRow(QWidget):
         self.cond_summary = QLabel()
         self.cond_summary.setStyleSheet("color: #8888aa; font-size: 9px;")
         cond_summary_row.addWidget(self.cond_summary, stretch=1)
-        clear_cond_btn = QPushButton("Effacer")
+        clear_cond_btn = QPushButton(tr("Effacer"))
         clear_cond_btn.setFixedHeight(24)
         clear_cond_btn.clicked.connect(lambda: self.cond_edit.clear())
         cond_summary_row.addWidget(clear_cond_btn)
@@ -406,12 +407,12 @@ class ActionRow(QWidget):
 
     def _update_type_tooltip(self, t: str):
         tips = {
-            "run":     "▶  Lance un exécutable.\nIgnoré si le processus est déjà en cours.",
-            "close":   "✕  Ferme un processus Windows par son nom de fichier.",
-            "command": "⌨  Exécute une commande dans cmd / PowerShell.",
-            "file":    "📂  Ouvre un fichier avec son application par défaut.",
+            "run":     tr("▶  Lance un exécutable.\nIgnoré si le processus est déjà en cours."),
+            "close":   tr("✕  Ferme un processus Windows par son nom de fichier."),
+            "command": tr("⌨  Exécute une commande dans cmd / PowerShell."),
+            "file":    tr("📂  Ouvre un fichier avec son application par défaut."),
         }
-        self.type_box.setToolTip(tips.get(t, "Type d'action"))
+        self.type_box.setToolTip(tips.get(t, tr("Type d'action")))
 
     def _append_condition(self, prefix: str):
         current = self.cond_edit.text().strip()
@@ -432,17 +433,17 @@ class ActionRow(QWidget):
         # Processus : visible pour run + close
         self.proc_edit.setVisible(t in ("run", "close"))
         self.proc_edit.setPlaceholderText(
-            "Processus à fermer  (ex : discord.exe)" if is_close
-            else "Processus  (ex : Discord.exe)"
+            tr("Processus à fermer  (ex : discord.exe)") if is_close
+            else tr("Processus  (ex : Discord.exe)")
         )
 
         # Chemin + parcourir : inutiles pour close (on ferme par nom de process)
         self.path_edit.setVisible(not is_close)
         self.browse_btn.setVisible(not is_close)
         self.path_edit.setPlaceholderText(
-            "Chemin vers l'exécutable  (.exe ou raccourci .lnk)" if is_run
-            else "Commande  (ex : taskkill /f /im app.exe)"      if t == "command"
-            else "Chemin vers le fichier à ouvrir"
+            tr("Chemin vers l'exécutable  (.exe ou raccourci .lnk)") if is_run
+            else tr("Commande  (ex : taskkill /f /im app.exe)")      if t == "command"
+            else tr("Chemin vers le fichier à ouvrir")
         )
 
         # Paramètres + avancé : uniquement pour "run"
@@ -459,8 +460,8 @@ class ActionRow(QWidget):
 
     def _browse(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Choisir un exécutable",
-            filter="Exécutables (*.exe);;Tous les fichiers (*.*)"
+            self, tr("Choisir un exécutable"),
+            filter=tr("Exécutables (*.exe);;Tous les fichiers (*.*)")
         )
         if path:
             path = path.replace("/", "\\")
@@ -516,7 +517,7 @@ class ActionRow(QWidget):
 
     def _update_cond_summary(self):
         t = self.cond_edit.text().strip()
-        self.cond_summary.setText(t if t else "Aucune condition")
+        self.cond_summary.setText(t if t else tr("Aucune condition"))
 
 
 # ---------------------------------------------------------------------------
@@ -545,8 +546,8 @@ class ActionList(QWidget):
         self.inner_layout.setSpacing(4)
         self.inner_layout.setContentsMargins(8, 4, 8, 8)
 
-        add_btn = QPushButton("＋  Ajouter une action")
-        add_btn.setToolTip("Ajouter une nouvelle action à cette liste")
+        add_btn = QPushButton(tr("＋  Ajouter une action"))
+        add_btn.setToolTip(tr("Ajouter une nouvelle action à cette liste"))
         add_btn.setStyleSheet(
             f"QPushButton {{ color: {color}; background: transparent; "
             f"border: 1px dashed {color}; border-radius: 4px; padding: 5px; font-size: 9pt; }}"
@@ -597,7 +598,7 @@ class DeviceWizard(QDialog):
         self.usb_list: list[tuple[str, str]] = []
         self.result_device: Device | None = None
 
-        self.setWindowTitle("Ajouter un périphérique" if not device else "Modifier le périphérique")
+        self.setWindowTitle(tr("Ajouter un périphérique") if not device else tr("Modifier le périphérique"))
         self.setMinimumSize(700, 520)
         self.resize(780, 600)
         self.setStyleSheet("""
@@ -635,14 +636,14 @@ class DeviceWizard(QDialog):
         step_bar = QHBoxLayout()
         step_bar.setSpacing(8)
 
-        self.step_label = QLabel("Étape 1 / 2")
+        self.step_label = QLabel(tr("Étape 1 / 2"))
         self.step_label.setStyleSheet(
             "color: #ffffff; background: #5050aa; border-radius: 4px; "
             "padding: 2px 10px; font-size: 10px; font-weight: bold;"
         )
         self.step_label.setFixedHeight(22)
 
-        self.step_desc = QLabel("Identification du périphérique")
+        self.step_desc = QLabel(tr("Identification du périphérique"))
         self.step_desc.setStyleSheet("color: #aaaacc; font-size: 10px;")
 
         step_bar.addWidget(self.step_label)
@@ -672,21 +673,21 @@ class DeviceWizard(QDialog):
         main_layout.addWidget(sep2)
 
         btn_row = QHBoxLayout()
-        self.prev_btn = QPushButton("← Précédent")
-        self.prev_btn.setToolTip("Retourner à l'étape d'identification")
+        self.prev_btn = QPushButton(tr("← Précédent"))
+        self.prev_btn.setToolTip(tr("Retourner à l'étape d'identification"))
         self.prev_btn.clicked.connect(self._prev)
         self.prev_btn.setVisible(False)
 
-        self.next_btn = QPushButton("Suivant →")
-        self.next_btn.setToolTip("Passer à la configuration des actions")
+        self.next_btn = QPushButton(tr("Suivant →"))
+        self.next_btn.setToolTip(tr("Passer à la configuration des actions"))
         self.next_btn.clicked.connect(self._next)
         self.next_btn.setStyleSheet(
             "QPushButton { background: #5050aa; border-color: #6060cc; } "
             "QPushButton:hover { background: #6060cc; }"
         )
 
-        cancel_btn = QPushButton("Annuler")
-        cancel_btn.setToolTip("Fermer sans enregistrer")
+        cancel_btn = QPushButton(tr("Annuler"))
+        cancel_btn.setToolTip(tr("Fermer sans enregistrer"))
         cancel_btn.clicked.connect(self.reject)
 
         btn_row.addWidget(self.prev_btn)
@@ -702,11 +703,11 @@ class DeviceWizard(QDialog):
         layout.setSpacing(8)
 
         # Texte d'intro
-        intro = QLabel(
+        intro = QLabel(tr(
             "Cliquez pour sélectionner un périphérique · "
             "Ctrl+clic pour en sélectionner plusieurs · "
             "Entrée pour valider"
-        )
+        ))
         intro.setStyleSheet("color: #8888aa; font-size: 9pt; font-style: italic;")
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -716,8 +717,8 @@ class DeviceWizard(QDialog):
         top_row.setSpacing(6)
 
         self.filter_edit = QLineEdit()
-        self.filter_edit.setPlaceholderText("🔍  Filtrer les périphériques…")
-        self.filter_edit.setToolTip("Filtrer la liste par nom ou identifiant")
+        self.filter_edit.setPlaceholderText(tr("🔍  Filtrer les périphériques…"))
+        self.filter_edit.setToolTip(tr("Filtrer la liste par nom ou identifiant"))
         self.filter_edit.textChanged.connect(self._apply_device_filter)
         self.filter_edit.setStyleSheet(
             "QLineEdit { background: #22223a; border: 1px solid #3a3a5a; "
@@ -725,9 +726,9 @@ class DeviceWizard(QDialog):
             "QLineEdit:focus { border-color: #6060cc; }"
         )
 
-        self.scan_btn = QPushButton("⟳  Scanner")
+        self.scan_btn = QPushButton(tr("⟳  Scanner"))
         self.scan_btn.setFixedWidth(95)
-        self.scan_btn.setToolTip("Actualiser la liste des périphériques détectés")
+        self.scan_btn.setToolTip(tr("Actualiser la liste des périphériques détectés"))
         self.scan_btn.clicked.connect(self._start_scan)
 
         top_row.addWidget(self.filter_edit, stretch=1)
@@ -767,27 +768,27 @@ class DeviceWizard(QDialog):
         manage_row = QHBoxLayout()
         manage_row.setSpacing(6)
 
-        hide_btn = QPushButton("🚫  Masquer la sélection")
+        hide_btn = QPushButton(tr("🚫  Masquer la sélection"))
         hide_btn.setFixedHeight(24)
-        hide_btn.setToolTip("Masquer le ou les périphériques sélectionnés des futurs scans")
+        hide_btn.setToolTip(tr("Masquer le ou les périphériques sélectionnés des futurs scans"))
         hide_btn.setStyleSheet(
             "QPushButton { font-size: 9pt; background: #2a1a2a; border: 1px solid #663366; border-radius: 4px; padding: 1px 8px; }"
             "QPushButton:hover { background: #3a1a3a; border-color: #aa44aa; }"
         )
         hide_btn.clicked.connect(self._hide_selected)
 
-        hide_int_btn = QPushButton("🤖  Masquer les internes")
+        hide_int_btn = QPushButton(tr("🤖  Masquer les internes"))
         hide_int_btn.setFixedHeight(24)
-        hide_int_btn.setToolTip("Masquer automatiquement les périphériques système/hubs/volumes internes")
+        hide_int_btn.setToolTip(tr("Masquer automatiquement les périphériques système/hubs/volumes internes"))
         hide_int_btn.setStyleSheet(
             "QPushButton { font-size: 9pt; background: #1a1a2a; border: 1px solid #334466; border-radius: 4px; padding: 1px 8px; }"
             "QPushButton:hover { background: #1a1a3a; border-color: #5566aa; }"
         )
         hide_int_btn.clicked.connect(self._hide_internals)
 
-        reset_btn = QPushButton("↺  Réinitialiser")
+        reset_btn = QPushButton(tr("↺  Réinitialiser"))
         reset_btn.setFixedHeight(24)
-        reset_btn.setToolTip("Afficher à nouveau tous les périphériques masqués")
+        reset_btn.setToolTip(tr("Afficher à nouveau tous les périphériques masqués"))
         reset_btn.setStyleSheet(
             "QPushButton { font-size: 9pt; background: #1a2a1a; border: 1px solid #336633; border-radius: 4px; padding: 1px 8px; }"
             "QPushButton:hover { background: #1a3a1a; border-color: #55aa55; }"
@@ -800,7 +801,7 @@ class DeviceWizard(QDialog):
         manage_row.addWidget(reset_btn)
         layout.addLayout(manage_row)
 
-        self.scan_status = QLabel("⟳  Scan en cours…")
+        self.scan_status = QLabel(tr("⟳  Scan en cours…"))
         self.scan_status.setStyleSheet("color: #6666aa; font-size: 9px;")
         layout.addWidget(self.scan_status)
 
@@ -809,7 +810,7 @@ class DeviceWizard(QDialog):
         sep_line_l = QLabel()
         sep_line_l.setStyleSheet("background: #3a3a4a; max-height: 1px;")
         sep_line_l.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        sep_or = QLabel("  ou saisir manuellement  ")
+        sep_or = QLabel(tr("  ou saisir manuellement  "))
         sep_or.setStyleSheet("color: #555577; font-size: 9px;")
         sep_line_r = QLabel()
         sep_line_r.setStyleSheet("background: #3a3a4a; max-height: 1px;")
@@ -825,15 +826,15 @@ class DeviceWizard(QDialog):
         form.setSpacing(10)
 
         self.id_edit = QLineEdit()
-        self.id_edit.setPlaceholderText("ex: VID_046D&PID_0AB7&MI  ou  Razer Tartarus")
-        self.id_edit.setToolTip("Fragment unique de l'identifiant Windows du périphérique")
-        form.addRow("Identifiant :", self.id_edit)
+        self.id_edit.setPlaceholderText(tr("ex: VID_046D&PID_0AB7&MI  ou  Razer Tartarus"))
+        self.id_edit.setToolTip(tr("Fragment unique de l'identifiant Windows du périphérique"))
+        form.addRow(tr("Identifiant :"), self.id_edit)
 
         self.match_combo = QComboBox()
         self.match_combo.addItems(["contains", "exact", "regex"])
-        self.match_combo.setToolTip("Mode de correspondance pour reconnaître le périphérique")
+        self.match_combo.setToolTip(tr("Mode de correspondance pour reconnaître le périphérique"))
         self.match_combo.currentTextChanged.connect(self._update_match_hint)
-        form.addRow("Correspondance :", self.match_combo)
+        form.addRow(tr("Correspondance :"), self.match_combo)
 
         self.match_hint = QLabel()
         self.match_hint.setStyleSheet("color: #44aa88; font-size: 9px; font-style: italic;")
@@ -842,20 +843,20 @@ class DeviceWizard(QDialog):
         layout.addLayout(form)
 
         # Section conditions d'exécution
-        cond_group = QGroupBox("Conditions d'exécution")
+        cond_group = QGroupBox(tr("Conditions d'exécution"))
         cond_group.setStyleSheet(STYLE_GROUP)
-        cond_group.setToolTip(
+        cond_group.setToolTip(tr(
             "Définissez des conditions qui doivent être remplies pour que les actions\n"
             "de ce périphérique s'exécutent (connexion et déconnexion)."
-        )
+        ))
         cond_layout = QVBoxLayout(cond_group)
         cond_layout.setSpacing(6)
         cond_layout.setContentsMargins(10, 10, 10, 10)
 
-        cond_info = QLabel(
+        cond_info = QLabel(tr(
             "Les actions ne s'exécuteront que si toutes les conditions sont vraies.\n"
             "Exemple : bloquer les actions si un autre périphérique spécifique est présent."
-        )
+        ))
         cond_info.setStyleSheet("color: #8888aa; font-size: 9px; font-style: italic;")
         cond_info.setWordWrap(True)
         cond_layout.addWidget(cond_info)
@@ -864,12 +865,12 @@ class DeviceWizard(QDialog):
         cond_edit_row.setSpacing(6)
 
         self.exec_cond_edit = QLineEdit()
-        self.exec_cond_edit.setPlaceholderText("device_present:Nom  &&  device_absent:Autre")
-        self.exec_cond_edit.setToolTip(
+        self.exec_cond_edit.setPlaceholderText(tr("device_present:Nom  &&  device_absent:Autre"))
+        self.exec_cond_edit.setToolTip(tr(
             "Conditions séparées par &&  (toutes doivent être vraies)\n"
             "  device_present:Nom  ->  ce périphérique DOIT être connecté\n"
             "  device_absent:Nom   ->  ce périphérique NE DOIT PAS être connecté"
-        )
+        ))
         cond_edit_row.addWidget(self.exec_cond_edit, stretch=1)
         cond_layout.addLayout(cond_edit_row)
 
@@ -877,12 +878,12 @@ class DeviceWizard(QDialog):
         builder_row.setSpacing(6)
 
         self.exec_builder_type = QComboBox()
-        self.exec_builder_type.addItems(["Périphérique présent", "Périphérique absent", "Moniteurs ≥"])
+        self.exec_builder_type.addItems([tr("Périphérique présent"), tr("Périphérique absent"), tr("Moniteurs ≥")])
         self.exec_builder_type.setFixedWidth(150)
         builder_row.addWidget(self.exec_builder_type)
 
         self.exec_builder_name = QLineEdit()
-        self.exec_builder_name.setPlaceholderText("Nom du périphérique")
+        self.exec_builder_name.setPlaceholderText(tr("Nom du périphérique"))
         builder_row.addWidget(self.exec_builder_name)
 
         self.exec_builder_monitors = QSpinBox()
@@ -896,9 +897,9 @@ class DeviceWizard(QDialog):
         self.exec_builder_op.setFixedWidth(60)
         builder_row.addWidget(self.exec_builder_op)
 
-        builder_add_btn = QPushButton("Ajouter")
+        builder_add_btn = QPushButton(tr("Ajouter"))
         builder_add_btn.setFixedHeight(24)
-        builder_add_btn.setToolTip("Ajouter la condition construite à la liste")
+        builder_add_btn.setToolTip(tr("Ajouter la condition construite à la liste"))
         builder_add_btn.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #2a2a3e; border: 1px solid #3a3a5a; border-radius: 4px; padding: 0 10px; }"
             "QPushButton:hover { background: #3a3a5a; border-color: #5050aa; }"
@@ -908,9 +909,9 @@ class DeviceWizard(QDialog):
 
         builder_row.addStretch()
 
-        add_present_btn = QPushButton("+ présent")
+        add_present_btn = QPushButton(tr("+ présent"))
         add_present_btn.setFixedHeight(24)
-        add_present_btn.setToolTip("Ajouter : si ce périphérique est connecté")
+        add_present_btn.setToolTip(tr("Ajouter : si ce périphérique est connecté"))
         add_present_btn.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #1a2a1a; border: 1px solid #336633; border-radius: 4px; padding: 0 6px; }"
             "QPushButton:hover { background: #1a3a1a; border-color: #55aa55; }"
@@ -918,9 +919,9 @@ class DeviceWizard(QDialog):
         add_present_btn.clicked.connect(lambda: self._append_exec_condition("device_present:"))
         builder_row.addWidget(add_present_btn)
 
-        add_absent_btn = QPushButton("+ absent")
+        add_absent_btn = QPushButton(tr("+ absent"))
         add_absent_btn.setFixedHeight(24)
-        add_absent_btn.setToolTip("Ajouter : si ce périphérique n'est PAS connecté")
+        add_absent_btn.setToolTip(tr("Ajouter : si ce périphérique n'est PAS connecté"))
         add_absent_btn.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #2a1a1a; border: 1px solid #663333; border-radius: 4px; padding: 0 6px; }"
             "QPushButton:hover { background: #3a1a1a; border-color: #aa5555; }"
@@ -928,9 +929,9 @@ class DeviceWizard(QDialog):
         add_absent_btn.clicked.connect(lambda: self._append_exec_condition("device_absent:"))
         builder_row.addWidget(add_absent_btn)
 
-        add_monitors_btn = QPushButton("+ ≥2 écrans")
+        add_monitors_btn = QPushButton(tr("+ ≥2 écrans"))
         add_monitors_btn.setFixedHeight(24)
-        add_monitors_btn.setToolTip("Ajouter : si au moins 2 écrans sont connectés")
+        add_monitors_btn.setToolTip(tr("Ajouter : si au moins 2 écrans sont connectés"))
         add_monitors_btn.setStyleSheet(
             "QPushButton { font-size: 8pt; background: #1a1a2a; border: 1px solid #334466; border-radius: 4px; padding: 0 6px; }"
             "QPushButton:hover { background: #1a1a3a; border-color: #5566aa; }"
@@ -945,7 +946,7 @@ class DeviceWizard(QDialog):
         self.exec_cond_summary = QLabel()
         self.exec_cond_summary.setStyleSheet("color: #8888aa; font-size: 9px;")
         cond_summary_row.addWidget(self.exec_cond_summary, stretch=1)
-        clear_exec_btn = QPushButton("Effacer")
+        clear_exec_btn = QPushButton(tr("Effacer"))
         clear_exec_btn.setFixedHeight(24)
         clear_exec_btn.clicked.connect(lambda: self.exec_cond_edit.clear())
         cond_summary_row.addWidget(clear_exec_btn)
@@ -965,9 +966,9 @@ class DeviceWizard(QDialog):
 
     def _update_match_hint(self, mode: str):
         hints = {
-            "contains": "✔ Vrai si l'identifiant contient ce texte (recommandé)",
-            "exact":    "✔ Vrai si l'identifiant correspond exactement à une ligne",
-            "regex":    "✔ Vrai si l'identifiant correspond à l'expression régulière",
+            "contains": tr("✔ Vrai si l'identifiant contient ce texte (recommandé)"),
+            "exact":    tr("✔ Vrai si l'identifiant correspond exactement à une ligne"),
+            "regex":    tr("✔ Vrai si l'identifiant correspond à l'expression régulière"),
         }
         self.match_hint.setText(hints.get(mode, ""))
 
@@ -1011,11 +1012,11 @@ class DeviceWizard(QDialog):
 
     def _update_exec_cond_summary(self):
         t = self.exec_cond_edit.text().strip()
-        self.exec_cond_summary.setText(t if t else "Aucune condition")
+        self.exec_cond_summary.setText(t if t else tr("Aucune condition"))
 
     def _start_scan(self):
         self.scan_btn.setEnabled(False)
-        self.scan_status.setText("⟳  Scan en cours…")
+        self.scan_status.setText(tr("⟳  Scan en cours…"))
         self.scan_status.setStyleSheet("color: #6666aa; font-size: 9px;")
         self._scan_thread = ScanThread(self.config.hidden_scan_ids)
         self._scan_thread.finished.connect(self._on_scan_done)
@@ -1033,10 +1034,14 @@ class DeviceWizard(QDialog):
             self.device_list.addItem(item)
         n = len(results)
         n_hidden = len(self.config.hidden_scan_ids)
-        hidden_txt = f"  ·  {n_hidden} masqué{'s' if n_hidden > 1 else ''}" if n_hidden else ""
-        self.scan_status.setText(
-            f"✔  {n} périphérique{'s' if n > 1 else ''} détecté{'s' if n > 1 else ''} (USB, HID, HDMI){hidden_txt}."
-        )
+        if n_hidden:
+            hidden_key = "  ·  {n} masqué" if n_hidden <= 1 else "  ·  {n} masqués"
+            hidden_txt = tr(hidden_key).format(n=n_hidden)
+        else:
+            hidden_txt = ""
+        det_key = "{n} périphérique détecté (USB, HID, HDMI){hidden}" if n <= 1 \
+            else "{n} périphériques détectés (USB, HID, HDMI){hidden}"
+        self.scan_status.setText("✔  " + tr(det_key).format(n=n, hidden=hidden_txt) + ".")
         self.scan_status.setStyleSheet("color: #44aa88; font-size: 9px;")
         self._apply_device_filter(self.filter_edit.text())
 
@@ -1093,16 +1098,16 @@ class DeviceWizard(QDialog):
         form.setSpacing(8)
 
         self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("ex : Clavier Corsair, Manette, Micro Logitech…")
-        self.name_edit.setToolTip("Nom affiché dans la liste principale de l'application")
-        form.addRow("Nom :", self.name_edit)
+        self.name_edit.setPlaceholderText(tr("ex : Clavier Corsair, Manette, Micro Logitech…"))
+        self.name_edit.setToolTip(tr("Nom affiché dans la liste principale de l'application"))
+        form.addRow(tr("Nom :"), self.name_edit)
 
-        self.confirm_check = QCheckBox("Demander confirmation avant de fermer les applications")
-        self.confirm_check.setToolTip(
+        self.confirm_check = QCheckBox(tr("Demander confirmation avant de fermer les applications"))
+        self.confirm_check.setToolTip(tr(
             "Si coché, une boîte de dialogue s'affichera lors de la déconnexion\n"
             "avant d'exécuter les actions de fermeture."
-        )
-        form.addRow("Options :", self.confirm_check)
+        ))
+        form.addRow(tr("Options :"), self.confirm_check)
         layout.addLayout(form)
 
         # ── Listes d'actions dans un scroll area ─────────────────────────────
@@ -1113,12 +1118,12 @@ class DeviceWizard(QDialog):
         acts_layout.setSpacing(10)
 
         self.con_list = ActionList(
-            "⚡  Actions à la CONNEXION", "#00cc66",
-            tooltip="Actions exécutées automatiquement quand ce périphérique est branché",
+            tr("⚡  Actions à la CONNEXION"), "#00cc66",
+            tooltip=tr("Actions exécutées automatiquement quand ce périphérique est branché"),
         )
         self.dis_list = ActionList(
-            "✖  Actions à la DÉCONNEXION", "#dd4444",
-            tooltip="Actions exécutées automatiquement quand ce périphérique est retiré",
+            tr("✖  Actions à la DÉCONNEXION"), "#dd4444",
+            tooltip=tr("Actions exécutées automatiquement quand ce périphérique est retiré"),
         )
         acts_layout.addWidget(self.con_list)
         acts_layout.addWidget(self.dis_list)
@@ -1170,32 +1175,32 @@ class DeviceWizard(QDialog):
     def _go_to_page2(self):
         self.stack.setCurrentIndex(1)
         self.prev_btn.setVisible(True)
-        self.next_btn.setText("💾  Enregistrer")
-        self.next_btn.setToolTip("Enregistrer la configuration de ce périphérique")
-        self.step_label.setText("Étape 2 / 2")
-        self.step_desc.setText("Configuration des actions")
+        self.next_btn.setText(tr("💾  Enregistrer"))
+        self.next_btn.setToolTip(tr("Enregistrer la configuration de ce périphérique"))
+        self.step_label.setText(tr("Étape 2 / 2"))
+        self.step_desc.setText(tr("Configuration des actions"))
         QTimer.singleShot(0, self._fit_to_content)
 
     def _prev(self):
         self.stack.setCurrentIndex(0)
         self.prev_btn.setVisible(False)
-        self.next_btn.setText("Suivant →")
-        self.next_btn.setToolTip("Passer à la configuration des actions")
-        self.step_label.setText("Étape 1 / 2")
-        self.step_desc.setText("Identification du périphérique")
+        self.next_btn.setText(tr("Suivant →"))
+        self.next_btn.setToolTip(tr("Passer à la configuration des actions"))
+        self.step_label.setText(tr("Étape 1 / 2"))
+        self.step_desc.setText(tr("Identification du périphérique"))
         QTimer.singleShot(0, self._fit_to_content)
 
     def _next(self):
         if self.stack.currentIndex() == 0:
             if not self.id_edit.text().strip():
-                QMessageBox.warning(self, "USB Detect", "Veuillez renseigner un identifiant de périphérique.")
+                QMessageBox.warning(self, "USB Detect", tr("Veuillez renseigner un identifiant de périphérique."))
                 return
             self._go_to_page2()
         else:
             self._save()
 
     def _save(self):
-        name = self.name_edit.text().strip() or "Nouveau périphérique"
+        name = self.name_edit.text().strip() or tr("Nouveau périphérique")
         dev_id = self.id_edit.text().strip()
         match_type = self.match_combo.currentText()
         exec_condition = self.exec_cond_edit.text().strip()

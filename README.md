@@ -1,5 +1,7 @@
 # USB Detect
 
+**🌐 Langue : Français | [English](README.en.md)**
+
 > [!CAUTION]
 > ## IMPORTANT — AVERTISSEMENT
 > Ce logiciel a été **entièrement conçu avec l'aide d'une intelligence artificielle**.
@@ -29,6 +31,7 @@ Le programme peut :
 * **Démarrer avec Windows** et se lancer en arrière-plan dans le system tray.
 * **Vérifier les mises à jour** GitHub automatiquement.
 * **S'installer automatiquement** dans Program Files au premier lancement.
+* **Choisir la langue** de l'interface (français ou anglais).
 
 Il est conçu pour fonctionner en arrière-plan avec une consommation minimale de ressources.
 
@@ -113,11 +116,15 @@ Au premier lancement, `config.json` est créé automatiquement à partir de `con
 ### Paramètres disponibles
 | Paramètre | Description |
 |---|---|
+| `language` | Langue de l'interface : `fr`, `en` ou `""` (détection automatique) |
 | `start_with_windows` | Lancer au démarrage de Windows |
 | `start_in_tray` | Démarrer en arrière-plan (system tray) |
 | `start_minimized` | Démarrer la fenêtre minimisée |
 | `notifications_enabled` | Activer les notifications |
 | `log_enabled` | Activer les logs |
+
+### Changer de langue
+La langue se choisit dans **Paramètres → Langue**. Au premier lancement, la langue est détectée automatiquement d'après la locale du système (anglais par défaut hors environnement francophone). Le changement de langue s'applique après un redémarrage de l'application.
 
 ---
 
