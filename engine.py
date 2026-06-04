@@ -573,6 +573,53 @@ def close_process(process_name: str):
         log.info(f"Fermé : {process_name}")
 
 # ---------------------------------------------------------------------------
+# Détection et support des commandes PowerShell
+# ---------------------------------------------------------------------------
+_PS_KEYWORDS = re.compile(
+    r"\$env:|"                         # variables d'environnement PS
+    r"\$[A-Za-z_]|"                    # variables PS ($var, $_, etc.)
+    r"Get-|Set-|New-|Remove-|"         # cmdlets courants
+    r"Invoke-|Start-|Stop-|"
+    r"Write-|Read-|Out-|"
+    r"Select-|Where-|ForEach-|"
+    r"Test-|Import-|Export-",
+    re.IGNORECASE,
+)
+
+
+def _is_powershell_command(cmd: str) -> bool:
+    """Détecte si une commande doit être exécutée via PowerShell plutôt que cmd.exe."""
+    stripped = cmd.strip().strip('"').strip("'")
+    if stripped.lower().startswith("powershell"):
+        return True
+    if stripped.lower().startswith("pwsh"):
+        return True
+    if stripped.lower().endswith(".ps1"):
+        return True
+    if stripped.lower().endswith('.ps1"') or stripped.lower().endswith(".ps1'"):
+        return True
+    if _PS_KEYWORDS.search(cmd):
+        return True
+    return False
+
+
+def _wrap_for_powershell(cmd: str) -> str:
+    """Encapsule une commande pour exécution correcte via PowerShell.
+
+    Si la commande commence déjà par 'powershell' ou 'pwsh', on la retourne
+    telle quelle (l'utilisateur a déjà spécifié l'interpréteur).
+    Sinon, on l'enveloppe dans un appel powershell -NoProfile -Command "...".
+    """
+    stripped = cmd.strip()
+    lower = stripped.lower()
+    if lower.startswith("powershell") or lower.startswith("pwsh"):
+        return stripped
+    if lower.endswith(".ps1") or lower.endswith('.ps1"') or lower.endswith(".ps1'"):
+        return f'powershell -NoProfile -ExecutionPolicy Bypass -File {stripped}'
+    return f'powershell -NoProfile -Command "{stripped}"'
+
+
+# ---------------------------------------------------------------------------
 # Moteur principal
 # ---------------------------------------------------------------------------
 class Engine:
@@ -715,8 +762,11 @@ class Engine:
                 close_process(action.process)
             elif action.type in ("command", "file"):
                 try:
+                    cmd = action.path
+                    if _is_powershell_command(cmd):
+                        cmd = _wrap_for_powershell(cmd)
                     subprocess.Popen(
-                        action.path,
+                        cmd,
                         shell=True,
                         creationflags=subprocess.CREATE_NO_WINDOW,
                         close_fds=True,
