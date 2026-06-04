@@ -16,7 +16,9 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Callable, Optional
 
-APP_VERSION = "2.2.0"
+from i18n import tr
+
+APP_VERSION = "2.3.0"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -25,6 +27,11 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.3.0": [
+        "Interface multilingue : français et anglais (Paramètres → Langue)",
+        "Détection automatique de la langue selon la locale du système",
+        "Support des commandes PowerShell comme action (détection auto et exécution via PowerShell)",
+    ],
     "2.2.0": [
         "Installation automatique dans Program Files au premier lancement",
         "Mise à jour intelligente : détecte et propose l'update si version plus récente",
@@ -185,6 +192,7 @@ class Config:
     start_minimized: bool = True
     start_with_windows: bool = False
     start_in_tray: bool = True
+    language: str = ""               # "fr" | "en" | "" (auto-détection)
     hidden_scan_ids: list[str] = field(default_factory=list)
     devices: list[Device] = field(default_factory=list)
 
@@ -213,6 +221,7 @@ class Config:
             start_minimized=g.get("start_minimized", True),
             start_with_windows=g.get("start_with_windows", False),
             start_in_tray=g.get("start_in_tray", True),
+            language=g.get("language", ""),
             hidden_scan_ids=g.get("hidden_scan_ids", []),
             devices=[Device.from_dict(d) for d in data.get("devices", [])],
         )
@@ -229,6 +238,7 @@ class Config:
                 "start_minimized": self.start_minimized,
                 "start_with_windows": self.start_with_windows,
                 "start_in_tray": self.start_in_tray,
+                "language": self.language,
                 "hidden_scan_ids": self.hidden_scan_ids,
             },
             "devices": [d.to_dict() for d in self.devices],
@@ -663,7 +673,7 @@ class Engine:
 
                 if device.connected and not device.was_connected:
                     log.info(f"Connecté : {device.name}")
-                    self._notify("Connecté", f"{device.name} détecté")
+                    self._notify(tr("Connecté"), tr("{name} détecté").format(name=device.name))
                     threading.Thread(
                         target=self._execute_actions,
                         args=(device, device.on_connect),
@@ -671,7 +681,7 @@ class Engine:
                     ).start()
 
                 elif not device.connected and device.was_connected:
-                    self._notify("Déconnecté", f"{device.name} retiré")
+                    self._notify(tr("Déconnecté"), tr("{name} retiré").format(name=device.name))
                     if device.confirm_on_disconnect and self.on_confirm_needed:
                         confirmed = self.on_confirm_needed(device)
                         if confirmed:
