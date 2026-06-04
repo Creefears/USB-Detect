@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,6 +27,11 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.3.0": [
+        "Interface multilingue : français et anglais (Paramètres → Langue)",
+        "Détection automatique de la langue selon la locale du système",
+        "Support des commandes PowerShell comme action (détection auto et exécution via PowerShell)",
+    ],
     "2.2.0": [
         "Installation automatique dans Program Files au premier lancement",
         "Mise à jour intelligente : détecte et propose l'update si version plus récente",

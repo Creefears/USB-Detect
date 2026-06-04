@@ -1545,7 +1545,7 @@ def _show_whats_new_dialog(last_version: str):
                                 key=lambda x: _parse_version(x[0]),
                                 reverse=True):
         if _parse_version(ver) > last_v:
-            items = "".join(f"<li>{c}</li>" for c in changes)
+            items = "".join(f"<li>{tr(c)}</li>" for c in changes)
             new_entries.append(f"<h4>v{ver}</h4><ul>{items}</ul>")
 
     if not new_entries:

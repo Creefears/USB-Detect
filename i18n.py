@@ -274,6 +274,34 @@ _EN = {
     "Une version plus récente va être installée :\n\n  Version installée : v{old}\n  Nouvelle version  : v{new}\n\nVotre configuration (macros) sera conservée.\n\nContinuer ?":
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
+    # ---- Changelog (Quoi de neuf) ----
+    "Interface multilingue : français et anglais (Paramètres → Langue)":
+        "Multilingual interface: French and English (Settings → Language)",
+    "Détection automatique de la langue selon la locale du système":
+        "Automatic language detection based on the system locale",
+    "Support des commandes PowerShell comme action (détection auto et exécution via PowerShell)":
+        "PowerShell commands supported as an action (auto-detection and execution via PowerShell)",
+    "Installation automatique dans Program Files au premier lancement":
+        "Automatic installation into Program Files on first launch",
+    "Mise à jour intelligente : détecte et propose l'update si version plus récente":
+        "Smart update: detects and offers the update if a newer version exists",
+    "Nettoyage automatique du registre en cas de désinstallation manuelle":
+        "Automatic registry cleanup in case of manual uninstall",
+    "Les données (config, logs) sont stockées dans %APPDATA% (plus de problèmes de permissions)":
+        "Data (config, logs) is stored in %APPDATA% (no more permission issues)",
+    "Fenêtre 'Quoi de neuf' affichée après chaque mise à jour":
+        "'What's new' window shown after each update",
+    "Détection USB, HID et moniteurs en temps réel":
+        "Real-time USB, HID and monitor detection",
+    "Actions automatiques configurables (lancer/fermer des apps)":
+        "Configurable automatic actions (launch/close apps)",
+    "Démarrage avec Windows et mode system tray":
+        "Start with Windows and system tray mode",
+    "Vérification automatique des mises à jour GitHub":
+        "Automatic GitHub update checking",
+    "Conditions d'exécution (nombre de moniteurs, présence d'autres périphériques)":
+        "Execution conditions (number of monitors, presence of other devices)",
+
     # ---- Notifications moteur (engine.py) ----
     "Connecté": "Connected",
     "Déconnecté": "Disconnected",
