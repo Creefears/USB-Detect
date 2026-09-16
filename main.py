@@ -874,7 +874,7 @@ class DeviceCard(QWidget):
         n_con_actions = len(self.device.on_connect)
         test_con_btn.setToolTip(
             tr("Simuler une CONNEXION\n{n} {actions} à exécuter\n"
-               "(fonctionne sans brancher le périphérique)").format(
+               "(sans brancher le périphérique · conditions ignorées)").format(
                 n=n_con_actions,
                 actions=tr("action") if n_con_actions <= 1 else tr("actions"))
         )
@@ -895,7 +895,7 @@ class DeviceCard(QWidget):
         n_dis_actions = len(self.device.on_disconnect)
         test_dis_btn.setToolTip(
             tr("Simuler une DÉCONNEXION\n{n} {actions} à exécuter\n"
-               "(fonctionne sans débrancher le périphérique)").format(
+               "(sans débrancher le périphérique · conditions ignorées)").format(
                 n=n_dis_actions,
                 actions=tr("action") if n_dis_actions <= 1 else tr("actions"))
         )
@@ -1418,56 +1418,29 @@ class MainWindow(QMainWindow):
         msg_key = "{name} activé" if device.enabled else "{name} désactivé"
         self._notify("USB Detect", tr(msg_key).format(name=device.name))
 
-    def _ask_force_if_blocked(self, device: Device):
-        """Retourne (lancer, forcer) selon l'état des conditions du périphérique.
-
-        Un test dont les conditions ne sont pas remplies n'affichait rien et
-        n'exécutait rien. On propose désormais de forcer, afin de pouvoir
-        vérifier les actions sans reproduire les conditions (2e écran, etc.).
-        """
-        cond = (device.execution_condition or "").strip()
-        if not cond or self.engine._check_condition(cond):
-            return True, False
-        reply = QMessageBox.question(
-            self, tr("Condition non remplie"),
-            tr("La condition d'exécution de « {name} » n'est pas remplie :\n"
-               "    {cond}\n\n"
-               "En fonctionnement normal, les actions ne seraient pas lancées.\n\n"
-               "Les exécuter quand même pour tester ?")
-            .format(name=device.name, cond=cond),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes)
-        if reply != QMessageBox.StandardButton.Yes:
-            return False, False
-        return True, True
-
+    # Les boutons de test exécutent toujours les actions, conditions ignorées :
+    # on teste précisément pour vérifier qu'elles fonctionnent, sans avoir à
+    # reproduire les conditions (brancher un 2e écran, etc.). Les conditions
+    # restent évaluées normalement en fonctionnement automatique.
     def _test_connect(self, device: Device):
         """Déclenche manuellement les actions de connexion, indépendamment de l'état réel."""
         import threading
-        run, force = self._ask_force_if_blocked(device)
-        if not run:
-            return
-        log.info(f"[TEST] Actions de connexion pour : {device.name}"
-                 + (" (forcé)" if force else ""))
+        log.info(f"[TEST] Actions de connexion pour : {device.name} (conditions ignorées)")
         self._notify(tr("Test"), tr("Simulation connexion : {name}").format(name=device.name))
         threading.Thread(
             target=self.engine._execute_actions,
-            args=(device, device.on_connect, force),
+            args=(device, device.on_connect, True),
             daemon=True,
         ).start()
 
     def _test_disconnect(self, device: Device):
         """Déclenche manuellement les actions de déconnexion, indépendamment de l'état réel."""
         import threading
-        run, force = self._ask_force_if_blocked(device)
-        if not run:
-            return
-        log.info(f"[TEST] Actions de déconnexion pour : {device.name}"
-                 + (" (forcé)" if force else ""))
+        log.info(f"[TEST] Actions de déconnexion pour : {device.name} (conditions ignorées)")
         self._notify(tr("Test"), tr("Simulation déconnexion : {name}").format(name=device.name))
         threading.Thread(
             target=self.engine._execute_actions,
-            args=(device, device.on_disconnect, force),
+            args=(device, device.on_disconnect, True),
             daemon=True,
         ).start()
 

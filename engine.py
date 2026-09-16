@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.4.4"
+APP_VERSION = "2.4.5"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,9 +27,9 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
-    "2.4.4": [
-        "Les boutons de test proposent d'exécuter les actions même si la "
-        "condition du périphérique n'est pas remplie, au lieu de ne rien faire",
+    "2.4.5": [
+        "Les boutons de test exécutent directement les actions, sans fenêtre de "
+        "confirmation : les conditions sont ignorées pendant un test",
     ],
     "2.4.3": [
         "Nouveau bouton « Tester maintenant » : exécute la commande et affiche "

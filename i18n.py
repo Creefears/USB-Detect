@@ -175,10 +175,10 @@ _EN = {
     "regex": "regex",
     "ID : {id}": "ID: {id}",
     "Identifiant complet :\n{id}": "Full identifier:\n{id}",
-    "Simuler une CONNEXION\n{n} {actions} à exécuter\n(fonctionne sans brancher le périphérique)":
-        "Simulate a CONNECTION\n{n} {actions} to run\n(works without plugging the device in)",
-    "Simuler une DÉCONNEXION\n{n} {actions} à exécuter\n(fonctionne sans débrancher le périphérique)":
-        "Simulate a DISCONNECTION\n{n} {actions} to run\n(works without unplugging the device)",
+    "Simuler une CONNEXION\n{n} {actions} à exécuter\n(sans brancher le périphérique · conditions ignorées)":
+        "Simulate a CONNECTION\n{n} {actions} to run\n(no need to plug the device in · conditions ignored)",
+    "Simuler une DÉCONNEXION\n{n} {actions} à exécuter\n(sans débrancher le périphérique · conditions ignorées)":
+        "Simulate a DISCONNECTION\n{n} {actions} to run\n(no need to unplug the device · conditions ignored)",
     "action": "action",
     "actions": "actions",
     "Activer / Désactiver ce macro": "Enable / disable this macro",
@@ -276,6 +276,10 @@ _EN = {
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
     # ---- Changelog (Quoi de neuf) ----
+    "Les boutons de test exécutent directement les actions, sans fenêtre de "
+    "confirmation : les conditions sont ignorées pendant un test":
+        "Test buttons now run the actions directly, with no confirmation dialog: "
+        "conditions are ignored while testing",
     "Les boutons de test proposent d'exécuter les actions même si la "
     "condition du périphérique n'est pas remplie, au lieu de ne rien faire":
         "Test buttons now offer to run the actions even when the device "
@@ -456,17 +460,6 @@ _EN = {
     "Ordre d'exécution de cette action": "Execution order of this action",
     "Les actions s'exécutent de haut en bas, dans l'ordre numéroté.":
         "Actions run from top to bottom, in the numbered order.",
-
-    # ---- Test forcé malgré une condition non remplie ----
-    "Condition non remplie": "Condition not met",
-    "La condition d'exécution de « {name} » n'est pas remplie :\n"
-    "    {cond}\n\n"
-    "En fonctionnement normal, les actions ne seraient pas lancées.\n\n"
-    "Les exécuter quand même pour tester ?":
-        "The execution condition of “{name}” is not met:\n"
-        "    {cond}\n\n"
-        "Under normal operation, the actions would not run.\n\n"
-        "Run them anyway to test?",
 
     # ---- Wizard : test d'une commande ----
     "▷  Tester maintenant": "▷  Test now",
