@@ -5,7 +5,7 @@ USB Detect v2 - Wizard d'ajout/édition de périphérique
 from PyQt6.QtCore import QByteArray, QSize, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QComboBox, QDialog,
+    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
     QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox,
     QPlainTextEdit, QPushButton,
@@ -13,7 +13,10 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox,
 )
 
-from engine import Action, Config, Device, get_device_type, is_internal_device, scan_usb_list
+from engine import (
+    Action, Config, Device, get_device_type, is_internal_device,
+    scan_usb_list, test_shell_command,
+)
 from i18n import tr
 
 
@@ -339,9 +342,28 @@ class ActionRow(QWidget):
         )
         cmd_lay.addWidget(self.cmd_edit)
 
+        hint_row = QHBoxLayout()
+        hint_row.setSpacing(8)
         self.cmd_hint = QLabel()
         self.cmd_hint.setStyleSheet("color: #6a6a8c; font-size: 8pt; font-style: italic;")
-        cmd_lay.addWidget(self.cmd_hint)
+        hint_row.addWidget(self.cmd_hint, stretch=1)
+
+        self.cmd_test_btn = QPushButton(tr("▷  Tester maintenant"))
+        self.cmd_test_btn.setFixedHeight(24)
+        self.cmd_test_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cmd_test_btn.setToolTip(tr(
+            "Exécute la commande immédiatement et affiche son résultat\n"
+            "(code de retour et sorties), pour diagnostiquer un échec."
+        ))
+        self.cmd_test_btn.setStyleSheet(
+            "QPushButton { font-size: 8pt; background: #16241f; color: #7cc4a8; "
+            "border: 1px solid #2f5a4a; border-radius: 12px; padding: 0 12px; }"
+            "QPushButton:hover { border-color: #7cc4a8; }"
+            "QPushButton:disabled { color: #4a5a54; border-color: #2a3a34; }"
+        )
+        self.cmd_test_btn.clicked.connect(self._test_command)
+        hint_row.addWidget(self.cmd_test_btn)
+        cmd_lay.addLayout(hint_row)
 
         self.cmd_widget.setVisible(False)
         root.addWidget(self.cmd_widget)
@@ -497,6 +519,53 @@ class ActionRow(QWidget):
         ])
         if has_advanced:
             self.adv_btn.setChecked(True)
+
+    def _test_command(self):
+        """Exécute la commande saisie et affiche son résultat réel."""
+        command = self.cmd_edit.toPlainText().strip()
+        if not command:
+            QMessageBox.information(self, tr("Test de la commande"),
+                                    tr("Saisissez d'abord une commande."))
+            return
+
+        self.cmd_test_btn.setEnabled(False)
+        self.cmd_test_btn.setText(tr("▷  Exécution…"))
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        QApplication.processEvents()
+        try:
+            res = test_shell_command(command, self.shell_box.currentData() or "")
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.cmd_test_btn.setEnabled(True)
+            self.cmd_test_btn.setText(tr("▷  Tester maintenant"))
+
+        box = QMessageBox(self)
+        box.setWindowTitle(tr("Test de la commande"))
+        details = [f"{tr('Interpréteur')} : {res.get('mode', '?')}",
+                   f"{tr('Commande lancée')} : {res.get('target', '?')}"]
+
+        if res.get("error"):
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setText(tr("La commande n'a pas pu être exécutée."))
+            details.append(f"{tr('Erreur')} : {res['error']}")
+        else:
+            code = res.get("returncode")
+            if res.get("ok"):
+                box.setIcon(QMessageBox.Icon.Information)
+                box.setText(tr("Commande exécutée avec succès (code 0)."))
+            else:
+                box.setIcon(QMessageBox.Icon.Warning)
+                box.setText(
+                    tr("La commande s'est terminée avec le code {code}.").format(code=code))
+            if res.get("stdout"):
+                details.append(f"\n{tr('Sortie')} :\n{res['stdout']}")
+            if res.get("stderr"):
+                details.append(f"\n{tr('Erreurs')} :\n{res['stderr']}")
+            if not res.get("stdout") and not res.get("stderr"):
+                details.append(tr("(aucune sortie)"))
+
+        box.setDetailedText("\n".join(details))
+        box.exec()
 
     def _update_type_tooltip(self, t: str):
         tips = {

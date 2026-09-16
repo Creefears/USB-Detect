@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.4.2"
+APP_VERSION = "2.4.3"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,6 +27,12 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.4.3": [
+        "Nouveau bouton « Tester maintenant » : exécute la commande et affiche "
+        "son résultat, au lieu d'échouer en silence",
+        "Les actions ignorées à cause d'une condition invalide sont désormais "
+        "signalées dans les logs",
+    ],
     "2.4.2": [
         "Correction de l'erreur « Failed to load Python DLL » lors de la mise à jour",
         "L'installateur ne dépend plus de l'environnement du programme qui le lance",
@@ -738,8 +744,31 @@ def _write_temp_batch(command: str) -> str:
     return fd.name
 
 
+def resolve_shell_invocation(command: str, mode: str = "") -> tuple:
+    """Détermine comment exécuter la commande.
+
+    Retourne (cible, use_shell, mode_effectif) où `cible` est soit une liste
+    d'arguments, soit une chaîne (quand use_shell est True).
+    Utilisé à la fois par l'exécution réelle et par le test manuel, afin que
+    le test reflète exactement ce qui sera lancé.
+    """
+    mode = (mode or "").strip().lower()
+    if mode not in ("cmd", "powershell"):
+        mode = "powershell" if _is_powershell_command(command) else "cmd"
+
+    multiline = len([ln for ln in command.splitlines() if ln.strip()]) > 1
+
+    if mode == "powershell":
+        return _powershell_args(command), False, mode
+    if multiline:
+        # cmd.exe ne gère pas les sauts de ligne via /c -> script .bat
+        return ["cmd", "/c", _write_temp_batch(command)], False, mode
+    # shell=True lance "cmd.exe /c <command>" sans requoting parasite.
+    return command, True, mode
+
+
 def run_shell_command(command: str, mode: str = ""):
-    """Exécute une commande shell via cmd.exe ou PowerShell.
+    """Exécute une commande shell via cmd.exe ou PowerShell, sans attendre.
 
     mode : "cmd" | "powershell" | "" (auto-détection, rétrocompatibilité).
     """
@@ -748,30 +777,65 @@ def run_shell_command(command: str, mode: str = ""):
         log.warning("Action commande ignorée : commande vide.")
         return
 
-    mode = (mode or "").strip().lower()
-    if mode not in ("cmd", "powershell"):
-        mode = "powershell" if _is_powershell_command(command) else "cmd"
+    no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    try:
+        target, use_shell, resolved = resolve_shell_invocation(command, mode)
+        log.info(f"Commande [{resolved}] : {command!r}")
+        log.info(f"  -> exécution : {target!r} (shell={use_shell})")
+        subprocess.Popen(target, shell=use_shell,
+                         creationflags=no_window, close_fds=True)
+    except Exception as e:
+        log.error(f"Échec de la commande « {command} » : {e}")
 
-    multiline = len([ln for ln in command.splitlines() if ln.strip()]) > 1
+
+def test_shell_command(command: str, mode: str = "", timeout: float = 20.0) -> dict:
+    """Exécute la commande en attendant sa fin et capture sa sortie.
+
+    Sert au bouton « Tester » du wizard : contrairement à l'exécution normale
+    (qui ne bloque pas et n'affiche rien), on récupère ici le code de retour et
+    les sorties, afin de rendre visible un échec silencieux.
+    """
+    command = (command or "").strip()
+    if not command:
+        return {"ok": False, "error": "Commande vide.", "command": command}
 
     no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
     try:
-        if mode == "powershell":
-            args = _powershell_args(command)
-            log.info(f"Commande PowerShell ({'multi-ligne' if multiline else 'simple'}) : "
-                     f"{command!r}")
-            subprocess.Popen(args, creationflags=no_window, close_fds=True)
-        elif multiline:
-            # cmd.exe ne gère pas les sauts de ligne via /c -> script .bat
-            bat = _write_temp_batch(command)
-            log.info(f"Commande cmd multi-ligne via {bat} : {command!r}")
-            subprocess.Popen(["cmd", "/c", bat], creationflags=no_window, close_fds=True)
-        else:
-            # shell=True lance "cmd.exe /c <command>" sans requoting parasite.
-            log.info(f"Commande cmd : {command}")
-            subprocess.Popen(command, shell=True, creationflags=no_window, close_fds=True)
+        target, use_shell, resolved = resolve_shell_invocation(command, mode)
     except Exception as e:
-        log.error(f"Échec de la commande ({mode}) « {command} » : {e}")
+        return {"ok": False, "error": f"Préparation impossible : {e}", "command": command}
+
+    try:
+        proc = subprocess.run(
+            target, shell=use_shell, creationflags=no_window,
+            capture_output=True, text=True, errors="replace", timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False, "mode": resolved, "command": command, "target": repr(target),
+            "error": f"La commande tourne encore après {timeout:.0f}s "
+                     f"(ce n'est pas forcément une erreur).",
+        }
+    except FileNotFoundError as e:
+        return {
+            "ok": False, "mode": resolved, "command": command, "target": repr(target),
+            "error": f"Interpréteur introuvable : {e}",
+        }
+    except Exception as e:
+        return {
+            "ok": False, "mode": resolved, "command": command, "target": repr(target),
+            "error": f"Échec du lancement : {e}",
+        }
+
+    return {
+        "ok": proc.returncode == 0,
+        "mode": resolved,
+        "command": command,
+        "target": repr(target),
+        "returncode": proc.returncode,
+        "stdout": (proc.stdout or "").strip(),
+        "stderr": (proc.stderr or "").strip(),
+    }
 
 
 def open_file(path: str):
@@ -912,9 +976,16 @@ class Engine:
             return
         if device.execution_condition:
             log.info(f"Conditions d'exécution remplies pour {device.name}: '{device.execution_condition}'")
-        for action in actions:
+        for index, action in enumerate(actions, start=1):
             if not self._check_condition(action.condition):
+                # Sans ce message, une condition mal formée (ex. « device_present: »
+                # sans nom) faisait échouer l'action en silence.
+                log.warning(
+                    f"Action {index} ({action.type}) IGNORÉE pour {device.name} : "
+                    f"condition non remplie ou invalide « {action.condition} »"
+                )
                 continue
+            log.info(f"Action {index}/{len(actions)} ({action.type}) pour {device.name}")
             if action.type == "run":
                 run_process(action.process, action.path, action.args)
                 if action.start_hidden:

@@ -276,6 +276,13 @@ _EN = {
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
     # ---- Changelog (Quoi de neuf) ----
+    "Nouveau bouton « Tester maintenant » : exécute la commande et affiche "
+    "son résultat, au lieu d'échouer en silence":
+        "New “Test now” button: runs the command and shows its result, "
+        "instead of failing silently",
+    "Les actions ignorées à cause d'une condition invalide sont désormais "
+    "signalées dans les logs":
+        "Actions skipped because of an invalid condition are now reported in the logs",
     "Correction de l'erreur « Failed to load Python DLL » lors de la mise à jour":
         "Fixed the “Failed to load Python DLL” error during updates",
     "L'installateur ne dépend plus de l'environnement du programme qui le lance":
@@ -445,6 +452,26 @@ _EN = {
     "Ordre d'exécution de cette action": "Execution order of this action",
     "Les actions s'exécutent de haut en bas, dans l'ordre numéroté.":
         "Actions run from top to bottom, in the numbered order.",
+
+    # ---- Wizard : test d'une commande ----
+    "▷  Tester maintenant": "▷  Test now",
+    "▷  Exécution…": "▷  Running…",
+    "Exécute la commande immédiatement et affiche son résultat\n"
+    "(code de retour et sorties), pour diagnostiquer un échec.":
+        "Runs the command right away and shows its result\n"
+        "(exit code and output), to diagnose a failure.",
+    "Test de la commande": "Command test",
+    "Saisissez d'abord une commande.": "Enter a command first.",
+    "Interpréteur": "Interpreter",
+    "Commande lancée": "Command launched",
+    "La commande n'a pas pu être exécutée.": "The command could not be run.",
+    "Commande exécutée avec succès (code 0).":
+        "Command ran successfully (exit code 0).",
+    "La commande s'est terminée avec le code {code}.":
+        "The command exited with code {code}.",
+    "Sortie": "Output",
+    "Erreurs": "Errors",
+    "(aucune sortie)": "(no output)",
 
     # ---- Wizard : interpréteur de commande ----
     "Auto": "Auto",
