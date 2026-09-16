@@ -105,6 +105,7 @@ class Action:
     wait_window_action: str = ""     # close
     start_hidden: bool = False       # envoie WM_CLOSE pour aller en systray
     args: str = ""                   # arguments de lancement (ex: --minimized)
+    shell: str = ""                  # "" (auto) | "cmd" | "powershell" — type=command
 
     @classmethod
     def from_dict(cls, d: dict) -> "Action":
@@ -118,6 +119,7 @@ class Action:
             wait_window_action=d.get("wait_window_action", ""),
             start_hidden=d.get("start_hidden", False),
             args=d.get("args", ""),
+            shell=d.get("shell", ""),
         )
 
     def to_dict(self) -> dict:
@@ -126,6 +128,7 @@ class Action:
             "process": self.process,
             "path": self.path,
             "args": self.args if self.args else None,
+            "shell": self.shell if self.shell else None,
             "condition": self.condition if self.condition else None,
             "post_sleep": self.post_sleep if self.post_sleep else None,
             "wait_window": self.wait_window if self.wait_window else None,
@@ -585,48 +588,109 @@ def close_process(process_name: str):
 # ---------------------------------------------------------------------------
 # Détection et support des commandes PowerShell
 # ---------------------------------------------------------------------------
+# Signaux PowerShell, utilisés uniquement en mode "auto" (configs existantes).
+# Le lookbehind (?<![-\w]) évite de matcher au milieu d'un mot ou après un tiret
+# (ex: "--start-minimized", "reset-tool.exe", "layout-test" ne sont PAS du PowerShell).
 _PS_KEYWORDS = re.compile(
-    r"\$env:|"                         # variables d'environnement PS
-    r"\$[A-Za-z_]|"                    # variables PS ($var, $_, etc.)
-    r"Get-|Set-|New-|Remove-|"         # cmdlets courants
-    r"Invoke-|Start-|Stop-|"
-    r"Write-|Read-|Out-|"
-    r"Select-|Where-|ForEach-|"
-    r"Test-|Import-|Export-",
+    r"\$env:"                          # variable d'environnement PowerShell
+    r"|\$[A-Za-z_]\w*"                 # variable PowerShell ($var)
+    r"|(?<![-\w])(?:Get|Set|New|Remove|Invoke|Start|Stop|Write|Read|Out"
+    r"|Select|Where|ForEach|Test|Import|Export|Add|Clear|Copy|Move"
+    r")-[A-Za-z]\w*",                  # cmdlet Verbe-Nom
     re.IGNORECASE,
 )
 
 
+def _strip_quotes(s: str) -> str:
+    s = s.strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+        return s[1:-1]
+    return s
+
+
+def _is_ps1_path(cmd: str) -> bool:
+    """True si la commande est un simple chemin vers un script .ps1."""
+    return _strip_quotes(cmd).lower().endswith(".ps1")
+
+
 def _is_powershell_command(cmd: str) -> bool:
-    """Détecte si une commande doit être exécutée via PowerShell plutôt que cmd.exe."""
-    stripped = cmd.strip().strip('"').strip("'")
-    if stripped.lower().startswith("powershell"):
-        return True
-    if stripped.lower().startswith("pwsh"):
-        return True
-    if stripped.lower().endswith(".ps1"):
-        return True
-    if stripped.lower().endswith('.ps1"') or stripped.lower().endswith(".ps1'"):
-        return True
-    if _PS_KEYWORDS.search(cmd):
-        return True
-    return False
+    """Heuristique : la commande ressemble-t-elle à du PowerShell ?
 
-
-def _wrap_for_powershell(cmd: str) -> str:
-    """Encapsule une commande pour exécution correcte via PowerShell.
-
-    Si la commande commence déjà par 'powershell' ou 'pwsh', on la retourne
-    telle quelle (l'utilisateur a déjà spécifié l'interpréteur).
-    Sinon, on l'enveloppe dans un appel powershell -NoProfile -Command "...".
+    Utilisée uniquement quand aucun interpréteur explicite n'est choisi
+    (action.shell vide — configs créées avant l'ajout du sélecteur).
     """
-    stripped = cmd.strip()
-    lower = stripped.lower()
-    if lower.startswith("powershell") or lower.startswith("pwsh"):
-        return stripped
-    if lower.endswith(".ps1") or lower.endswith('.ps1"') or lower.endswith(".ps1'"):
-        return f'powershell -NoProfile -ExecutionPolicy Bypass -File {stripped}'
-    return f'powershell -NoProfile -Command "{stripped}"'
+    stripped = cmd.strip().lower()
+    if stripped.startswith("powershell") or stripped.startswith("pwsh"):
+        return True
+    if _is_ps1_path(cmd):
+        return True
+    return bool(_PS_KEYWORDS.search(cmd))
+
+
+def _powershell_args(command: str) -> list[str]:
+    """Construit la liste d'arguments pour exécuter `command` via PowerShell.
+
+    On passe toujours par -Command (et non -File) : PowerShell évalue alors la
+    commande, ce qui expanse correctement les variables comme $env:USERPROFILE.
+    -File, lui, traite son argument comme un chemin littéral — c'est la cause
+    classique des scripts "introuvables".
+
+    La commande est passée comme UN SEUL élément de la liste d'arguments :
+    subprocess gère l'échappement, donc les guillemets internes sont préservés.
+    """
+    c = command.strip()
+    low = c.lower()
+    # Un simple chemin de script -> l'invoquer via l'opérateur d'appel &,
+    # qui gère les chemins contenant des espaces.
+    if not (low.startswith("powershell") or low.startswith("pwsh")) and _is_ps1_path(c):
+        if not c.startswith("&"):
+            quoted = c if (c.startswith('"') or c.startswith("'")) else f'"{c}"'
+            c = f"& {quoted}"
+    return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", c]
+
+
+def run_shell_command(command: str, mode: str = ""):
+    """Exécute une commande shell via cmd.exe ou PowerShell.
+
+    mode : "cmd" | "powershell" | "" (auto-détection, rétrocompatibilité).
+    """
+    command = (command or "").strip()
+    if not command:
+        log.warning("Action commande ignorée : commande vide.")
+        return
+
+    mode = (mode or "").strip().lower()
+    if mode not in ("cmd", "powershell"):
+        mode = "powershell" if _is_powershell_command(command) else "cmd"
+
+    no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    try:
+        if mode == "powershell":
+            args = _powershell_args(command)
+            log.info(f"Commande PowerShell : {command}")
+            subprocess.Popen(args, creationflags=no_window, close_fds=True)
+        else:
+            # shell=True lance "cmd.exe /c <command>" sans requoting parasite.
+            log.info(f"Commande cmd : {command}")
+            subprocess.Popen(command, shell=True, creationflags=no_window, close_fds=True)
+    except Exception as e:
+        log.error(f"Échec de la commande ({mode}) « {command} » : {e}")
+
+
+def open_file(path: str):
+    """Ouvre un fichier/dossier/URL avec l'application par défaut."""
+    path = (path or "").strip()
+    if not path:
+        log.warning("Action fichier ignorée : chemin vide.")
+        return
+    try:
+        log.info(f"Ouverture : {path}")
+        os.startfile(_strip_quotes(path))  # noqa: S606 — Windows uniquement
+    except AttributeError:
+        # os.startfile n'existe pas hors Windows
+        subprocess.Popen(path, shell=True, close_fds=True)
+    except Exception as e:
+        log.error(f"Impossible d'ouvrir « {path} » : {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -770,19 +834,12 @@ class Engine:
                     self._wait_for_window(action.wait_window, action.wait_window_action)
             elif action.type == "close":
                 close_process(action.process)
-            elif action.type in ("command", "file"):
-                try:
-                    cmd = action.path
-                    if _is_powershell_command(cmd):
-                        cmd = _wrap_for_powershell(cmd)
-                    subprocess.Popen(
-                        cmd,
-                        shell=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
-                        close_fds=True,
-                    )
-                except Exception as e:
-                    log.error(f"Erreur action {action.type} : {e}")
+            elif action.type == "command":
+                run_shell_command(action.path, action.shell)
+                if action.post_sleep:
+                    time.sleep(action.post_sleep)
+            elif action.type == "file":
+                open_file(action.path)
 
     def _wait_for_window(self, title: str, action: str, timeout: int = 15):
         """Attend l'apparition d'une fenêtre (thread dédié — pas de blocage du scan)."""

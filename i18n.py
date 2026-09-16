@@ -386,6 +386,28 @@ _EN = {
     "＋  Ajouter une action": "＋  Add an action",
     "Ajouter une nouvelle action à cette liste":
         "Add a new action to this list",
+    "Aucune action — cliquez sur « Ajouter une action ».":
+        "No action yet — click “Add an action”.",
+    "Ordre d'exécution de cette action": "Execution order of this action",
+    "Les actions s'exécutent de haut en bas, dans l'ordre numéroté.":
+        "Actions run from top to bottom, in the numbered order.",
+
+    # ---- Wizard : interpréteur de commande ----
+    "Auto": "Auto",
+    "cmd": "cmd",
+    "PowerShell": "PowerShell",
+    "Interpréteur utilisé pour exécuter la commande.\n"
+    "• cmd — commandes classiques (taskkill, start, shutdown…)\n"
+    "• PowerShell — cmdlets et scripts .ps1 ; les variables\n"
+    "  comme $env:USERPROFILE sont correctement interprétées.":
+        "Interpreter used to run the command.\n"
+        "• cmd — classic commands (taskkill, start, shutdown…)\n"
+        "• PowerShell — cmdlets and .ps1 scripts; variables such as\n"
+        "  $env:USERPROFILE are expanded correctly.",
+    "Commande PowerShell  (ex : & \"$env:USERPROFILE\\script.ps1\")":
+        "PowerShell command  (e.g. & \"$env:USERPROFILE\\script.ps1\")",
+    "Commande cmd  (ex : taskkill /f /im app.exe)":
+        "cmd command  (e.g. taskkill /f /im app.exe)",
 
     # ---- Wizard : fenêtre principale ----
     "Ajouter un périphérique": "Add a device",

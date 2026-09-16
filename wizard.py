@@ -6,7 +6,7 @@ from PyQt6.QtCore import QByteArray, QSize, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
-    QFileDialog, QFormLayout, QGroupBox, QHBoxLayout,
+    QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
     QSizePolicy, QStackedWidget, QVBoxLayout, QWidget,
     QDoubleSpinBox, QSpinBox,
@@ -101,6 +101,52 @@ QGroupBox::title {
 }
 """
 
+# Style d'une carte d'action (page « Configuration des actions »)
+_CARD_STYLE = """
+#ActionCard {
+    background: #23233a;
+    border: 1px solid #33334f;
+    border-radius: 7px;
+}
+#ActionCard:hover { border-color: #4a4a7a; }
+
+#OrderBadge {
+    background: #2e2e4e;
+    color: #9090c8;
+    border: 1px solid #3f3f66;
+    border-radius: 10px;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+#ActionCard QLineEdit {
+    background: #1b1b2c;
+    border: 1px solid #3a3a5a;
+    border-radius: 5px;
+    padding: 3px 8px;
+    color: #d5d5ea;
+    selection-background-color: #4a4a8a;
+}
+#ActionCard QLineEdit:focus    { border-color: #6a6ad0; background: #1f1f33; }
+#ActionCard QLineEdit:disabled { color: #55556e; background: #191926; }
+
+#ActionCard QComboBox {
+    background: #2a2a44;
+    border: 1px solid #3f3f66;
+    border-radius: 5px;
+    padding: 3px 8px;
+    color: #d5d5ea;
+}
+#ActionCard QComboBox:hover     { border-color: #5a5aa0; }
+#ActionCard QComboBox::drop-down { border: none; width: 16px; }
+
+#AdvPanel {
+    background: #1c1c2e;
+    border: 1px solid #33334f;
+    border-radius: 6px;
+}
+"""
+
 
 # ---------------------------------------------------------------------------
 # Thread de scan (non-bloquant)
@@ -131,19 +177,48 @@ class ActionRow(QWidget):
         ("📂  Ouvrir un fichier", "file"),
     ]
 
+    # Interpréteur pour les actions « Commande shell » (valeur "" = auto-détection)
+    _SHELL_ITEMS = [
+        ("Auto",       ""),
+        ("cmd",        "cmd"),
+        ("PowerShell", "powershell"),
+    ]
+
     def __init__(self, action: Action = None, parent=None):
         super().__init__(parent)
         self.action = action or Action(type="run")
         self._build()
 
+    def set_index(self, n: int):
+        """Affiche le numéro d'ordre d'exécution de l'action."""
+        self.index_lbl.setText(str(n))
+
     def _build(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 2, 0, 4)
-        root.setSpacing(3)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Carte : chaque action est un bloc visuel distinct
+        self.card = QFrame()
+        self.card.setObjectName("ActionCard")
+        self.card.setStyleSheet(_CARD_STYLE)
+        outer.addWidget(self.card)
+
+        root = QVBoxLayout(self.card)
+        root.setContentsMargins(10, 8, 10, 9)
+        root.setSpacing(7)
 
         # --- Ligne principale ---
         main_row = QHBoxLayout()
         main_row.setSpacing(6)
+
+        # Badge d'ordre d'exécution (les actions s'exécutent de haut en bas)
+        self.index_lbl = QLabel("1")
+        self.index_lbl.setObjectName("OrderBadge")
+        self.index_lbl.setFixedSize(20, 20)
+        self.index_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.index_lbl.setToolTip(tr("Ordre d'exécution de cette action"))
+        main_row.addWidget(self.index_lbl)
 
         self.type_box = QComboBox()
         for label, value in self._TYPE_ITEMS:
@@ -153,15 +228,37 @@ class ActionRow(QWidget):
              if self.type_box.itemData(i) == self.action.type), 0
         )
         self.type_box.setCurrentIndex(_idx)
-        self.type_box.setFixedWidth(158)
+        self.type_box.setFixedWidth(165)
+        self.type_box.setFixedHeight(28)
         self.type_box.currentIndexChanged.connect(self._on_type_changed)
         self._update_type_tooltip(self.action.type)
 
+        # Interpréteur — visible uniquement pour « Commande shell »
+        self.shell_box = QComboBox()
+        for label, value in self._SHELL_ITEMS:
+            self.shell_box.addItem(tr(label), value)
+        _sidx = next(
+            (i for i in range(self.shell_box.count())
+             if self.shell_box.itemData(i) == (self.action.shell or "")), 0
+        )
+        self.shell_box.setCurrentIndex(_sidx)
+        self.shell_box.setFixedWidth(116)
+        self.shell_box.setFixedHeight(28)
+        self.shell_box.setToolTip(tr(
+            "Interpréteur utilisé pour exécuter la commande.\n"
+            "• cmd — commandes classiques (taskkill, start, shutdown…)\n"
+            "• PowerShell — cmdlets et scripts .ps1 ; les variables\n"
+            "  comme $env:USERPROFILE sont correctement interprétées."
+        ))
+        self.shell_box.currentIndexChanged.connect(self._update_path_placeholder)
+
         self.proc_edit = QLineEdit(self.action.process)
+        self.proc_edit.setFixedHeight(28)
         self.proc_edit.setPlaceholderText(tr("Processus (ex: opera.exe)"))
         self.proc_edit.setToolTip(tr("Nom exact du processus Windows (ex : opera.exe, Discord.exe)"))
 
         self.path_edit = QLineEdit(self.action.path)
+        self.path_edit.setFixedHeight(28)
         self.path_edit.setPlaceholderText(tr("Chemin ou commande"))
         self.path_edit.setToolTip(tr("Chemin complet vers l'exécutable ou la commande à lancer"))
 
@@ -206,8 +303,9 @@ class ActionRow(QWidget):
         remove_btn.clicked.connect(lambda: self.removed.emit(self))
 
         main_row.addWidget(self.type_box)
+        main_row.addWidget(self.shell_box)
         main_row.addWidget(self.proc_edit)
-        main_row.addWidget(self.path_edit)
+        main_row.addWidget(self.path_edit, stretch=1)
         main_row.addWidget(self.browse_btn)
         main_row.addWidget(self.adv_btn)
         main_row.addWidget(remove_btn)
@@ -427,8 +525,9 @@ class ActionRow(QWidget):
     def _on_type_changed(self, _=None):
         t = self.type_box.currentData() or "run"
         self._update_type_tooltip(t)
-        is_close = t == "close"
-        is_run   = t == "run"
+        is_close   = t == "close"
+        is_run     = t == "run"
+        is_command = t == "command"
 
         # Processus : visible pour run + close
         self.proc_edit.setVisible(t in ("run", "close"))
@@ -437,20 +536,44 @@ class ActionRow(QWidget):
             else tr("Processus  (ex : Discord.exe)")
         )
 
+        # Sélecteur d'interpréteur : uniquement pour « Commande shell »
+        self.shell_box.setVisible(is_command)
+
         # Chemin + parcourir : inutiles pour close (on ferme par nom de process)
         self.path_edit.setVisible(not is_close)
-        self.browse_btn.setVisible(not is_close)
-        self.path_edit.setPlaceholderText(
-            tr("Chemin vers l'exécutable  (.exe ou raccourci .lnk)") if is_run
-            else tr("Commande  (ex : taskkill /f /im app.exe)")      if t == "command"
-            else tr("Chemin vers le fichier à ouvrir")
-        )
+        # Parcourir n'a de sens que pour un exécutable ou un fichier
+        self.browse_btn.setVisible(t in ("run", "file"))
+        self._update_path_placeholder()
 
-        # Paramètres + avancé : uniquement pour "run"
+        # Paramètres : uniquement pour "run"
         self.args_widget.setVisible(is_run)
-        self.adv_btn.setVisible(is_run)
-        if not is_run:
+        # Options avancées (délai, condition) : run + command
+        self.adv_btn.setVisible(is_run or is_command)
+        if not (is_run or is_command):
+            self.adv_btn.setChecked(False)
             self.adv_panel.setVisible(False)
+        # Le masquage forcé ne concerne que le lancement d'une app
+        self.start_hidden_check.setVisible(is_run)
+
+    def _update_path_placeholder(self, _=None):
+        """Adapte l'aide du champ principal au type d'action et à l'interpréteur."""
+        t = self.type_box.currentData() or "run"
+        if t == "run":
+            self.path_edit.setPlaceholderText(
+                tr("Chemin vers l'exécutable  (.exe ou raccourci .lnk)"))
+        elif t == "command":
+            shell = self.shell_box.currentData() or ""
+            if shell == "powershell":
+                self.path_edit.setPlaceholderText(
+                    tr("Commande PowerShell  (ex : & \"$env:USERPROFILE\\script.ps1\")"))
+            elif shell == "cmd":
+                self.path_edit.setPlaceholderText(
+                    tr("Commande cmd  (ex : taskkill /f /im app.exe)"))
+            else:
+                self.path_edit.setPlaceholderText(
+                    tr("Commande  (ex : taskkill /f /im app.exe)"))
+        else:
+            self.path_edit.setPlaceholderText(tr("Chemin vers le fichier à ouvrir"))
 
     def _add_preset_arg(self, arg: str):
         """Ajoute un argument préset dans le champ args (sans doublon)."""
@@ -472,13 +595,16 @@ class ActionRow(QWidget):
 
     def get_action(self) -> Action:
         t = self.type_box.currentData() or "run"
+        # Délai et condition sont disponibles pour « run » et « command »
+        has_adv = t in ("run", "command")
         return Action(
             type=t,
-            process=self.proc_edit.text().strip(),
-            path=self.path_edit.text().strip() if t != "close" else "",
+            process=self.proc_edit.text().strip()       if t in ("run", "close") else "",
+            path=self.path_edit.text().strip()          if t != "close" else "",
             args=self.args_edit.text().strip()          if t == "run" else "",
-            condition=self.cond_edit.text().strip()     if t == "run" else "",
-            post_sleep=self.sleep_spin.value()          if t == "run" else 0,
+            shell=(self.shell_box.currentData() or "")  if t == "command" else "",
+            condition=self.cond_edit.text().strip()     if has_adv else "",
+            post_sleep=self.sleep_spin.value()          if has_adv else 0,
             wait_window="",         # retiré de l'UI (trop edge-case)
             wait_window_action="",  # retiré de l'UI
             start_hidden=self.start_hidden_check.isChecked() if t == "run" else False,
@@ -535,23 +661,37 @@ class ActionList(QWidget):
 
         group = QGroupBox(title)
         group.setStyleSheet(
-            f"QGroupBox {{ color: {color}; border: 1px solid #3a3a4a; "
-            f"border-radius:6px; margin-top:10px; padding-top:10px; }}"
-            f"QGroupBox::title {{ subcontrol-origin: margin; left:10px; padding: 0 6px; font-size: 9pt; }}"
+            f"QGroupBox {{ color: {color}; border: 1px solid #33334f; "
+            f"border-radius: 8px; margin-top: 11px; padding-top: 12px; "
+            f"font-size: 9pt; font-weight: bold; }}"
+            f"QGroupBox::title {{ subcontrol-origin: margin; left: 11px; "
+            f"padding: 0 6px; }}"
         )
         if tooltip:
             group.setToolTip(tooltip)
 
         self.inner_layout = QVBoxLayout(group)
-        self.inner_layout.setSpacing(4)
-        self.inner_layout.setContentsMargins(8, 4, 8, 8)
+        self.inner_layout.setSpacing(6)
+        self.inner_layout.setContentsMargins(10, 6, 10, 10)
+
+        # Message affiché tant qu'aucune action n'est définie
+        self.empty_lbl = QLabel(tr("Aucune action — cliquez sur « Ajouter une action »."))
+        self.empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_lbl.setStyleSheet(
+            "color: #5a5a78; font-size: 8pt; font-style: italic; "
+            "font-weight: normal; padding: 6px;"
+        )
+        self.inner_layout.addWidget(self.empty_lbl)
 
         add_btn = QPushButton(tr("＋  Ajouter une action"))
         add_btn.setToolTip(tr("Ajouter une nouvelle action à cette liste"))
+        add_btn.setFixedHeight(29)
+        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         add_btn.setStyleSheet(
             f"QPushButton {{ color: {color}; background: transparent; "
-            f"border: 1px dashed {color}; border-radius: 4px; padding: 5px; font-size: 9pt; }}"
-            f"QPushButton:hover {{ background: rgba(255,255,255,0.05); }}"
+            f"border: 1px dashed {color}; border-radius: 6px; padding: 5px; "
+            f"font-size: 9pt; font-weight: normal; }}"
+            f"QPushButton:hover {{ background: rgba(255,255,255,0.06); }}"
         )
         add_btn.clicked.connect(self.add_row)
 
@@ -560,6 +700,13 @@ class ActionList(QWidget):
 
         for a in (actions or []):
             self._insert_row(ActionRow(a))
+        self._renumber()
+
+    def _renumber(self):
+        """Renumérote les cartes et affiche/masque le message « aucune action »."""
+        for i, row in enumerate(self.rows, start=1):
+            row.set_index(i)
+        self.empty_lbl.setVisible(not self.rows)
 
     def _insert_row(self, row: ActionRow):
         self.rows.append(row)
@@ -568,6 +715,7 @@ class ActionList(QWidget):
         row.removed.connect(self._remove_row)
         # Redimensionner quand le panneau avancé s'ouvre/ferme
         row.adv_btn.toggled.connect(self._notify_change)
+        self._renumber()
         self._notify_change()
 
     def add_row(self):
@@ -577,6 +725,7 @@ class ActionList(QWidget):
         self.rows.remove(row)
         self.inner_layout.removeWidget(row)
         row.deleteLater()
+        self._renumber()
         self._notify_change()
 
     def _notify_change(self, *_):
@@ -1092,30 +1241,59 @@ class DeviceWizard(QDialog):
         layout.setSpacing(10)
         layout.setContentsMargins(0, 4, 0, 0)
 
-        # ── Nom + option de confirmation ─────────────────────────────────────
-        form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        form.setSpacing(8)
+        # ── Bandeau identité : nom + option de confirmation ───────────────────
+        ident = QFrame()
+        ident.setObjectName("IdentPanel")
+        ident.setStyleSheet(
+            "#IdentPanel { background: #23233a; border: 1px solid #33334f; "
+            "border-radius: 8px; }"
+            "#IdentPanel QLineEdit { background: #1b1b2c; border: 1px solid #3a3a5a; "
+            "border-radius: 5px; padding: 4px 8px; color: #d5d5ea; }"
+            "#IdentPanel QLineEdit:focus { border-color: #6a6ad0; background: #1f1f33; }"
+            "#IdentPanel QLabel { color: #9a9ac4; font-size: 9pt; }"
+            "#IdentPanel QCheckBox { color: #c0c0d8; font-size: 9pt; }"
+        )
+        ident_lay = QVBoxLayout(ident)
+        ident_lay.setContentsMargins(12, 10, 12, 10)
+        ident_lay.setSpacing(8)
 
+        name_row = QHBoxLayout()
+        name_row.setSpacing(8)
+        name_lbl = QLabel(tr("Nom :"))
+        name_lbl.setFixedWidth(52)
+        name_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.name_edit = QLineEdit()
+        self.name_edit.setFixedHeight(29)
         self.name_edit.setPlaceholderText(tr("ex : Clavier Corsair, Manette, Micro Logitech…"))
         self.name_edit.setToolTip(tr("Nom affiché dans la liste principale de l'application"))
-        form.addRow(tr("Nom :"), self.name_edit)
+        name_row.addWidget(name_lbl)
+        name_row.addWidget(self.name_edit, stretch=1)
+        ident_lay.addLayout(name_row)
 
         self.confirm_check = QCheckBox(tr("Demander confirmation avant de fermer les applications"))
         self.confirm_check.setToolTip(tr(
             "Si coché, une boîte de dialogue s'affichera lors de la déconnexion\n"
             "avant d'exécuter les actions de fermeture."
         ))
-        form.addRow(tr("Options :"), self.confirm_check)
-        layout.addLayout(form)
+        confirm_row = QHBoxLayout()
+        confirm_row.setSpacing(8)
+        confirm_row.addSpacing(60)
+        confirm_row.addWidget(self.confirm_check)
+        confirm_row.addStretch()
+        ident_lay.addLayout(confirm_row)
+        layout.addWidget(ident)
+
+        # ── Rappel : les actions s'exécutent dans l'ordre affiché ────────────
+        order_hint = QLabel(tr("Les actions s'exécutent de haut en bas, dans l'ordre numéroté."))
+        order_hint.setStyleSheet("color: #6a6a8c; font-size: 8pt; font-style: italic;")
+        layout.addWidget(order_hint)
 
         # ── Listes d'actions dans un scroll area ─────────────────────────────
         actions_container = QWidget()
         actions_container.setStyleSheet("background: transparent;")
         acts_layout = QVBoxLayout(actions_container)
-        acts_layout.setContentsMargins(0, 0, 4, 0)
-        acts_layout.setSpacing(10)
+        acts_layout.setContentsMargins(0, 0, 6, 0)
+        acts_layout.setSpacing(12)
 
         self.con_list = ActionList(
             tr("⚡  Actions à la CONNEXION"), "#00cc66",
@@ -1133,12 +1311,14 @@ class DeviceWizard(QDialog):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll.setMinimumHeight(200)
+        scroll.setMinimumHeight(220)
         scroll.setStyleSheet(
             "QScrollArea { border: none; background: transparent; }"
-            "QScrollBar:vertical { background: #1a1a2a; width: 6px; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #3a3a6a; border-radius: 3px; min-height: 20px; }"
+            "QScrollBar:vertical { background: transparent; width: 8px; margin: 2px 0; }"
+            "QScrollBar::handle:vertical { background: #3a3a6a; border-radius: 4px; min-height: 24px; }"
+            "QScrollBar::handle:vertical:hover { background: #4e4e8c; }"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }"
         )
         layout.addWidget(scroll, stretch=1)
 
