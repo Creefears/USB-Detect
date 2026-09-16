@@ -986,21 +986,28 @@ def check_for_update(callback: Optional[Callable] = None):
 
 def download_and_apply_update(asset_url: str, progress_callback: Optional[Callable] = None,
                               done_callback: Optional[Callable] = None):
-    """Télécharge le .exe depuis GitHub et remplace l'exécutable actuel.
+    """Télécharge le .exe de la nouvelle version depuis GitHub et le vérifie.
+
+    Le fichier téléchargé est l'installateur : c'est lui qui se chargera de
+    remplacer l'installation (avec élévation UAC). Cette fonction ne modifie
+    donc jamais l'exécutable en place.
 
     - progress_callback(percent: int, status: str) pour la progression
-    - done_callback(success: bool, error: str) quand c'est terminé
+    - done_callback(success: bool, info: str) où info est le chemin de
+      l'installateur vérifié en cas de succès, ou le message d'erreur sinon
     """
     def _download():
         import urllib.request
         import tempfile
-        import shutil
 
+        tmp_path = None
         try:
             if progress_callback:
                 progress_callback(0, "Connexion au serveur…")
 
-            req = urllib.request.Request(asset_url)
+            req = urllib.request.Request(
+                asset_url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"}
+            )
             with urllib.request.urlopen(req, timeout=60) as resp:
                 total = int(resp.headers.get("Content-Length", 0))
                 downloaded = 0
@@ -1023,38 +1030,53 @@ def download_and_apply_update(asset_url: str, progress_callback: Optional[Callab
                             total_mb = total / (1024 * 1024)
                             progress_callback(pct, f"{mb:.1f} / {total_mb:.1f} Mo")
                 finally:
+                    tmp.flush()
+                    os.fsync(tmp.fileno())
                     tmp.close()
 
+            # --- Vérification d'intégrité ---------------------------------
+            # Un téléchargement tronqué produit un exe corrompu. Installé tel
+            # quel, il échoue au lancement avec « Failed to load Python DLL ».
+            if total > 0 and downloaded != total:
+                raise IOError(
+                    f"Téléchargement incomplet : {downloaded} octets reçus "
+                    f"sur {total} attendus."
+                )
+            actual = os.path.getsize(tmp_path)
+            if total > 0 and actual != total:
+                raise IOError(
+                    f"Taille du fichier incorrecte : {actual} octets sur "
+                    f"{total} attendus."
+                )
+            if actual < 1_000_000:
+                raise IOError(f"Fichier téléchargé trop petit ({actual} octets).")
+            with open(tmp_path, "rb") as fh:
+                if fh.read(2) != b"MZ":
+                    raise IOError(
+                        "Le fichier téléchargé n'est pas un exécutable Windows valide."
+                    )
+
             if progress_callback:
-                progress_callback(100, "Téléchargement terminé, installation…")
+                progress_callback(100, "Téléchargement vérifié.")
 
-            # Déterminer le chemin de l'exe actuel
-            if getattr(sys, "frozen", False):
-                current_exe = sys.executable
-            else:
-                # Mode dev : on place le .exe à côté dans dist/
-                dist_dir = EXE_DIR / "dist"
-                dist_dir.mkdir(exist_ok=True)
-                current_exe = str(dist_dir / "USB Detect.exe")
+            log.info(f"Mise à jour téléchargée et vérifiée : {tmp_path} ({actual} octets)")
 
-            # Créer un script batch qui remplace l'exe après fermeture
-            bat_path = str(DATA_DIR / "_update.bat")
-            with open(bat_path, "w", encoding="utf-8") as bat:
-                bat.write("@echo off\n")
-                bat.write("echo Mise a jour de USB Detect...\n")
-                bat.write("timeout /t 2 /nobreak >nul\n")
-                bat.write(f'copy /y "{tmp_path}" "{current_exe}"\n')
-                bat.write(f'del "{tmp_path}"\n')
-                bat.write(f'start "" "{current_exe}"\n')
-                bat.write(f'del "%~f0"\n')
-
-            log.info(f"Mise à jour téléchargée : {tmp_path} → {current_exe}")
-
+            # L'exe téléchargé est lui-même l'installateur : lancé depuis un
+            # dossier temporaire, il détecte l'installation existante, demande
+            # l'élévation UAC et se copie dans Program Files. On ne remplace
+            # donc JAMAIS l'exe nous-mêmes — un batch non élevé n'a de toute
+            # façon pas les droits d'écrire dans Program Files.
             if done_callback:
-                done_callback(True, bat_path)
+                done_callback(True, tmp_path)
 
         except Exception as e:
-            log.error(f"Erreur de téléchargement : {e}")
+            log.error(f"Erreur de mise à jour : {e}")
+            # Ne pas laisser traîner un fichier partiel
+            if tmp_path:
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
             if done_callback:
                 done_callback(False, str(e))
 
@@ -1161,6 +1183,42 @@ def check_install_status() -> str:
         return "same"
 
 
+def _copy_exe_with_retry(src: Path, dest: Path, timeout: float = 30.0):
+    """Copie l'exécutable en réessayant tant que la cible est verrouillée.
+
+    Windows refuse d'écraser un .exe en cours d'exécution. Lors d'une mise à
+    jour, l'ancienne instance peut ne pas être totalement fermée : on réessaie
+    au lieu d'échouer, et on écrit d'abord à côté avant de remplacer d'un seul
+    coup (os.replace est atomique) pour ne jamais laisser un exe à moitié
+    écrit — c'est ce qui provoque l'erreur « Failed to load Python DLL ».
+    """
+    import shutil
+
+    staged = dest.with_suffix(".exe.new")
+    shutil.copy2(str(src), str(staged))
+
+    deadline = time.time() + timeout
+    last_error: Optional[Exception] = None
+    while time.time() < deadline:
+        try:
+            os.replace(str(staged), str(dest))  # atomique
+            log.info(f"Exécutable installé : {dest}")
+            return
+        except OSError as e:
+            last_error = e
+            log.info("Exécutable verrouillé (instance en cours), nouvelle tentative…")
+            time.sleep(1.0)
+
+    try:
+        staged.unlink()
+    except OSError:
+        pass
+    raise RuntimeError(
+        f"Impossible de remplacer {dest} après {timeout:.0f}s : {last_error}. "
+        "Fermez USB Detect puis relancez l'installateur."
+    )
+
+
 def self_install(is_update: bool = False) -> Optional[str]:
     """Copie l'exe dans Program Files et configure Windows.
 
@@ -1178,7 +1236,7 @@ def self_install(is_update: bool = False) -> Optional[str]:
     dest_exe = INSTALL_DIR / "USB Detect.exe"
 
     # Copier l'exe (remplace s'il existe déjà)
-    shutil.copy2(str(current_exe), str(dest_exe))
+    _copy_exe_with_retry(current_exe, dest_exe)
 
     # Extraire config.example.json si embarqué par PyInstaller
     internal_data = getattr(sys, "_MEIPASS", None)

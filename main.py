@@ -686,18 +686,21 @@ class SettingsDialog(QDialog):
         if success:
             self.progress_bar.setValue(100)
             self.progress_bar.setFormat(tr("Prêt ! Redémarrage…"))
-            bat_path = info
+            installer_path = info
             reply = QMessageBox.question(
                 self, tr("Mise à jour prête"),
                 tr("La mise à jour a été téléchargée.\n\n"
-                   "USB Detect va se fermer et se relancer automatiquement.\n"
+                   "USB Detect va se fermer et l'installateur va démarrer.\n"
+                   "Acceptez la demande d'autorisation Windows pour finaliser.\n"
                    "Votre configuration sera conservée.\n\n"
                    "Continuer ?"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:
                 import subprocess as _sp
-                _sp.Popen(["cmd", "/c", bat_path],
-                          creationflags=0x08000000)  # CREATE_NO_WINDOW
+                # L'installateur gère lui-même l'élévation UAC et le
+                # remplacement dans Program Files.
+                _sp.Popen([installer_path],
+                          creationflags=0x00000008)  # DETACHED_PROCESS
                 QApplication.quit()
             else:
                 self.progress_bar.setFormat(tr("Mise à jour en attente"))

@@ -148,8 +148,9 @@ _EN = {
     "Connexion…": "Connecting…",
     "Prêt ! Redémarrage…": "Ready! Restarting…",
     "Mise à jour prête": "Update ready",
-    "La mise à jour a été téléchargée.\n\nUSB Detect va se fermer et se relancer automatiquement.\nVotre configuration sera conservée.\n\nContinuer ?":
-        "The update has been downloaded.\n\nUSB Detect will close and restart automatically.\nYour configuration will be preserved.\n\nContinue?",
+    "La mise à jour a été téléchargée.\n\nUSB Detect va se fermer et l'installateur va démarrer.\nAcceptez la demande d'autorisation Windows pour finaliser.\nVotre configuration sera conservée.\n\nContinuer ?":
+        "The update has been downloaded.\n\nUSB Detect will close and the installer will start.\n"
+        "Accept the Windows permission prompt to finish.\nYour configuration will be preserved.\n\nContinue?",
     "Mise à jour en attente": "Update pending",
     "Erreur de mise à jour": "Update error",
     "Le téléchargement a échoué :\n{info}": "The download failed:\n{info}",
