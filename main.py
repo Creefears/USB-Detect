@@ -21,6 +21,7 @@ from engine import (
     check_for_update, download_and_apply_update,
     set_startup_enabled, is_startup_enabled, check_install_status,
     self_install, self_uninstall, get_installed_version,
+    sanitize_pyinstaller_env, child_env,
 )
 from wizard import DeviceWizard
 from i18n import tr, set_language, get_language, init_language, LANGUAGES
@@ -700,7 +701,8 @@ class SettingsDialog(QDialog):
                 # L'installateur gère lui-même l'élévation UAC et le
                 # remplacement dans Program Files.
                 _sp.Popen([installer_path],
-                          creationflags=0x00000008)  # DETACHED_PROCESS
+                          creationflags=0x00000008,  # DETACHED_PROCESS
+                          env=child_env())
                 QApplication.quit()
             else:
                 self.progress_bar.setFormat(tr("Mise à jour en attente"))
@@ -1598,7 +1600,7 @@ def _handle_install_or_update():
         self_install(is_update=False)
         dest = str(INSTALL_DIR / "USB Detect.exe")
         import subprocess as _sp
-        _sp.Popen([dest], creationflags=0x00000008)  # DETACHED_PROCESS
+        _sp.Popen([dest], creationflags=0x00000008, env=child_env())  # DETACHED_PROCESS
         sys.exit(0)
 
     # Argument --update : appelé après élévation UAC
@@ -1606,7 +1608,7 @@ def _handle_install_or_update():
         self_install(is_update=True)
         dest = str(INSTALL_DIR / "USB Detect.exe")
         import subprocess as _sp
-        _sp.Popen([dest], creationflags=0x00000008)
+        _sp.Popen([dest], creationflags=0x00000008, env=child_env())
         sys.exit(0)
 
     # Argument --uninstall
@@ -1639,14 +1641,14 @@ def _handle_install_or_update():
         # Même version installée dans Program Files → lancer celle-là
         dest = str(INSTALL_DIR / "USB Detect.exe")
         import subprocess as _sp
-        _sp.Popen([dest], creationflags=0x00000008)
+        _sp.Popen([dest], creationflags=0x00000008, env=child_env())
         sys.exit(0)
 
     if status == "older":
         # Version plus ancienne que celle installée → lancer l'installée
         dest = str(INSTALL_DIR / "USB Detect.exe")
         import subprocess as _sp
-        _sp.Popen([dest], creationflags=0x00000008)
+        _sp.Popen([dest], creationflags=0x00000008, env=child_env())
         sys.exit(0)
 
     # Première installation ou mise à jour
@@ -1687,7 +1689,7 @@ def _handle_install_or_update():
     self_install(is_update=(status == "update"))
     dest = str(INSTALL_DIR / "USB Detect.exe")
     import subprocess as _sp
-    _sp.Popen([dest], creationflags=0x00000008)
+    _sp.Popen([dest], creationflags=0x00000008, env=child_env())
     sys.exit(0)
 
 
@@ -1695,6 +1697,10 @@ def _handle_install_or_update():
 # Point d'entrée
 # ---------------------------------------------------------------------------
 def main():
+    # Purge des variables PyInstaller : doit précéder tout lancement de
+    # processus enfant, sinon l'installateur hérite du dossier _MEI du parent.
+    sanitize_pyinstaller_env()
+
     # Langue : initialisée tôt (config.json > locale système > fr)
     init_language()
 

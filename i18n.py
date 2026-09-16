@@ -276,6 +276,10 @@ _EN = {
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
     # ---- Changelog (Quoi de neuf) ----
+    "Correction de l'erreur « Failed to load Python DLL » lors de la mise à jour":
+        "Fixed the “Failed to load Python DLL” error during updates",
+    "L'installateur ne dépend plus de l'environnement du programme qui le lance":
+        "The installer no longer depends on the environment of the program launching it",
     "Les commandes sur plusieurs lignes fonctionnent enfin : nouvel éditeur "
     "multi-ligne, une commande par ligne":
         "Multi-line commands finally work: new multi-line editor, "

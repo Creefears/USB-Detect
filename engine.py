@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.4.1"
+APP_VERSION = "2.4.2"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,6 +27,10 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.4.2": [
+        "Correction de l'erreur « Failed to load Python DLL » lors de la mise à jour",
+        "L'installateur ne dépend plus de l'environnement du programme qui le lance",
+    ],
     "2.4.1": [
         "Les commandes sur plusieurs lignes fonctionnent enfin : nouvel éditeur "
         "multi-ligne, une commande par ligne",
@@ -603,6 +607,46 @@ def close_process(process_name: str):
         log.info(f"Fermé : {process_name}")
 
 # ---------------------------------------------------------------------------
+# Environnement PyInstaller
+# ---------------------------------------------------------------------------
+# Le bootloader onefile transmet ces variables au processus enfant. Si cet
+# enfant est lui-même un exe onefile (cas de la mise à jour : l'app lance
+# l'installateur), son bootloader croit que l'extraction a déjà eu lieu et
+# réutilise le dossier _MEI du PARENT. Le parent se ferme, supprime ce dossier,
+# et l'enfant échoue avec « Failed to load Python DLL ..._MEIxxxx\pythonXY.dll ».
+# Il faut donc purger ces variables avant de lancer un de nos exécutables.
+_PYINSTALLER_ENV_VARS = (
+    "_MEIPASS2",                  # PyInstaller <= 5.x
+    "_PYI_ARCHIVE_FILE",          # PyInstaller >= 6.x
+    "_PYI_APPLICATION_HOME_DIR",
+    "_PYI_PARENT_PROCESS_LEVEL",
+    "_PYI_ONEFILE_PARENT_PID",
+    "_PYI_SPLASH_IPC",
+)
+
+
+def sanitize_pyinstaller_env():
+    """Retire les variables PyInstaller de notre propre environnement.
+
+    Appelé au démarrage : le bootloader les a déjà consommées avant que Python
+    ne démarre, elles ne servent donc plus à rien ici. Les supprimer garantit
+    qu'aucun processus enfant ne les héritera — y compris ceux lancés via
+    ShellExecuteW, auquel on ne peut pas passer d'environnement explicite.
+    """
+    removed = [v for v in _PYINSTALLER_ENV_VARS if os.environ.pop(v, None) is not None]
+    if removed:
+        log.info(f"Variables PyInstaller purgées de l'environnement : {', '.join(removed)}")
+
+
+def child_env() -> dict:
+    """Environnement nettoyé pour lancer un de nos exécutables."""
+    env = os.environ.copy()
+    for var in _PYINSTALLER_ENV_VARS:
+        env.pop(var, None)
+    return env
+
+
+# ---------------------------------------------------------------------------
 # Détection et support des commandes PowerShell
 # ---------------------------------------------------------------------------
 # Signaux PowerShell, utilisés uniquement en mode "auto" (configs existantes).
@@ -1057,8 +1101,11 @@ def download_and_apply_update(asset_url: str, progress_callback: Optional[Callab
                 chunk_size = 65536
 
                 # Télécharger dans un fichier temporaire
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".exe",
-                                                  dir=str(DATA_DIR))
+                # Nom reconnaissable : si le lancement automatique échoue,
+                # l'utilisateur peut retrouver et exécuter l'installateur.
+                tmp = tempfile.NamedTemporaryFile(
+                    delete=False, prefix="USB-Detect-installateur-",
+                    suffix=".exe", dir=str(DATA_DIR))
                 tmp_path = tmp.name
                 try:
                     while True:
