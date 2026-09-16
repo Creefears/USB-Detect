@@ -276,6 +276,10 @@ _EN = {
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
     # ---- Changelog (Quoi de neuf) ----
+    "Les boutons de test proposent d'exécuter les actions même si la "
+    "condition du périphérique n'est pas remplie, au lieu de ne rien faire":
+        "Test buttons now offer to run the actions even when the device "
+        "condition is not met, instead of doing nothing",
     "Nouveau bouton « Tester maintenant » : exécute la commande et affiche "
     "son résultat, au lieu d'échouer en silence":
         "New “Test now” button: runs the command and shows its result, "
@@ -452,6 +456,17 @@ _EN = {
     "Ordre d'exécution de cette action": "Execution order of this action",
     "Les actions s'exécutent de haut en bas, dans l'ordre numéroté.":
         "Actions run from top to bottom, in the numbered order.",
+
+    # ---- Test forcé malgré une condition non remplie ----
+    "Condition non remplie": "Condition not met",
+    "La condition d'exécution de « {name} » n'est pas remplie :\n"
+    "    {cond}\n\n"
+    "En fonctionnement normal, les actions ne seraient pas lancées.\n\n"
+    "Les exécuter quand même pour tester ?":
+        "The execution condition of “{name}” is not met:\n"
+        "    {cond}\n\n"
+        "Under normal operation, the actions would not run.\n\n"
+        "Run them anyway to test?",
 
     # ---- Wizard : test d'une commande ----
     "▷  Tester maintenant": "▷  Test now",

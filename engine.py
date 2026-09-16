@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.4.3"
+APP_VERSION = "2.4.4"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,6 +27,10 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.4.4": [
+        "Les boutons de test proposent d'exécuter les actions même si la "
+        "condition du périphérique n'est pas remplie, au lieu de ne rien faire",
+    ],
     "2.4.3": [
         "Nouveau bouton « Tester maintenant » : exécute la commande et affiche "
         "son résultat, au lieu d'échouer en silence",
@@ -969,15 +973,23 @@ class Engine:
         log.warning(f"Condition non reconnue : '{condition}'")
         return False
 
-    def _execute_actions(self, device: Device, actions: list[Action]):
-        """Exécute les actions dans un thread dédié — ne bloque JAMAIS le ScanWorker."""
-        if device.execution_condition and not self._check_condition(device.execution_condition):
+    def _execute_actions(self, device: Device, actions: list[Action],
+                         ignore_conditions: bool = False):
+        """Exécute les actions dans un thread dédié — ne bloque JAMAIS le ScanWorker.
+
+        ignore_conditions=True force l'exécution malgré les conditions non
+        remplies : réservé au test manuel, pour vérifier les actions sans avoir
+        à reproduire physiquement les conditions (brancher un 2e écran, etc.).
+        """
+        if ignore_conditions:
+            log.info(f"[FORCÉ] Conditions ignorées pour {device.name} (test manuel)")
+        elif device.execution_condition and not self._check_condition(device.execution_condition):
             log.info(f"Condition d'exécution non remplie pour {device.name}, actions annulées")
             return
-        if device.execution_condition:
+        elif device.execution_condition:
             log.info(f"Conditions d'exécution remplies pour {device.name}: '{device.execution_condition}'")
         for index, action in enumerate(actions, start=1):
-            if not self._check_condition(action.condition):
+            if not ignore_conditions and not self._check_condition(action.condition):
                 # Sans ce message, une condition mal formée (ex. « device_present: »
                 # sans nom) faisait échouer l'action en silence.
                 log.warning(
