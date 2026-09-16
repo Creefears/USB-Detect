@@ -275,6 +275,20 @@ _EN = {
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
     # ---- Changelog (Quoi de neuf) ----
+    "Correction des actions « Commande shell » : les commandes PowerShell "
+    "et cmd s'exécutent désormais correctement":
+        "Fixed “Shell command” actions: PowerShell and cmd commands now run correctly",
+    "Choix explicite de l'interpréteur (Auto, cmd ou PowerShell) pour chaque commande":
+        "Explicit interpreter choice (Auto, cmd or PowerShell) for each command",
+    "Les variables comme $env:USERPROFILE sont enfin correctement interprétées":
+        "Variables such as $env:USERPROFILE are finally expanded correctly",
+    "Les commandes exécutées sont journalisées (fini les échecs silencieux)":
+        "Executed commands are now logged (no more silent failures)",
+    "Refonte de la page de configuration des actions : cartes numérotées "
+    "indiquant l'ordre d'exécution":
+        "Redesigned action configuration page: numbered cards showing the execution order",
+    "Délai et conditions désormais disponibles aussi pour les commandes":
+        "Delay and conditions are now available for commands too",
     "Interface multilingue : français et anglais (Paramètres → Langue)":
         "Multilingual interface: French and English (Settings → Language)",
     "Détection automatique de la langue selon la locale du système":

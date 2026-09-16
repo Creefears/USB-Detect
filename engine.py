@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,6 +27,16 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.4.0": [
+        "Correction des actions « Commande shell » : les commandes PowerShell "
+        "et cmd s'exécutent désormais correctement",
+        "Choix explicite de l'interpréteur (Auto, cmd ou PowerShell) pour chaque commande",
+        "Les variables comme $env:USERPROFILE sont enfin correctement interprétées",
+        "Les commandes exécutées sont journalisées (fini les échecs silencieux)",
+        "Refonte de la page de configuration des actions : cartes numérotées "
+        "indiquant l'ordre d'exécution",
+        "Délai et conditions désormais disponibles aussi pour les commandes",
+    ],
     "2.3.0": [
         "Interface multilingue : français et anglais (Paramètres → Langue)",
         "Détection automatique de la langue selon la locale du système",
