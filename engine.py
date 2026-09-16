@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.4.1"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,7 +27,7 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
-    "2.5.0": [
+    "2.4.1": [
         "Les commandes sur plusieurs lignes fonctionnent enfin : nouvel éditeur "
         "multi-ligne, une commande par ligne",
         "Les commandes cmd multi-lignes sont exécutées via un script temporaire",
