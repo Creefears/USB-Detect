@@ -18,7 +18,7 @@ from typing import Callable, Optional
 
 from i18n import tr
 
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.5.0"
 GITHUB_REPO = "Creefears/USB-Detect"
 APP_NAME = "USB Detect"
 INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NAME
@@ -27,6 +27,13 @@ INSTALL_DIR = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / APP_NA
 # Changelog (affiché au premier lancement d'une nouvelle version)
 # ---------------------------------------------------------------------------
 CHANGELOG = {
+    "2.5.0": [
+        "Les commandes sur plusieurs lignes fonctionnent enfin : nouvel éditeur "
+        "multi-ligne, une commande par ligne",
+        "Les commandes cmd multi-lignes sont exécutées via un script temporaire",
+        "Options avancées allégées : une seule ligne pour les conditions, "
+        "au lieu de trois outils redondants",
+    ],
     "2.4.0": [
         "Correction des actions « Commande shell » : les commandes PowerShell "
         "et cmd s'exécutent désormais correctement",
@@ -651,12 +658,40 @@ def _powershell_args(command: str) -> list[str]:
     c = command.strip()
     low = c.lower()
     # Un simple chemin de script -> l'invoquer via l'opérateur d'appel &,
-    # qui gère les chemins contenant des espaces.
-    if not (low.startswith("powershell") or low.startswith("pwsh")) and _is_ps1_path(c):
+    # qui gère les chemins contenant des espaces. (Mono-ligne uniquement :
+    # sur plusieurs lignes il s'agit d'un script, pas d'un chemin.)
+    is_single_line = "\n" not in c
+    if (is_single_line
+            and not (low.startswith("powershell") or low.startswith("pwsh"))
+            and _is_ps1_path(c)):
         if not c.startswith("&"):
             quoted = c if (c.startswith('"') or c.startswith("'")) else f'"{c}"'
             c = f"& {quoted}"
+    # PowerShell traite nativement les sauts de ligne comme des séparateurs
+    # d'instructions : une commande multi-ligne passe telle quelle.
     return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", c]
+
+
+def _write_temp_batch(command: str) -> str:
+    """Écrit une commande multi-ligne dans un .bat temporaire et retourne son chemin.
+
+    cmd.exe ne sait pas exécuter une chaîne contenant des sauts de ligne via
+    /c : il faut un vrai fichier de commandes. Le script se supprime lui-même
+    en fin d'exécution.
+    """
+    import tempfile
+
+    # newline="" : pas de traduction automatique, on écrit les CRLF nous-mêmes
+    fd = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".bat", prefix="usbdetect_", delete=False,
+        dir=str(DATA_DIR), encoding="utf-8", newline="",
+    )
+    with fd:
+        fd.write("@echo off\r\n")
+        for line in command.splitlines():
+            fd.write(line + "\r\n")
+        fd.write('del "%~f0"\r\n')  # auto-nettoyage
+    return fd.name
 
 
 def run_shell_command(command: str, mode: str = ""):
@@ -673,12 +708,20 @@ def run_shell_command(command: str, mode: str = ""):
     if mode not in ("cmd", "powershell"):
         mode = "powershell" if _is_powershell_command(command) else "cmd"
 
+    multiline = len([ln for ln in command.splitlines() if ln.strip()]) > 1
+
     no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
     try:
         if mode == "powershell":
             args = _powershell_args(command)
-            log.info(f"Commande PowerShell : {command}")
+            log.info(f"Commande PowerShell ({'multi-ligne' if multiline else 'simple'}) : "
+                     f"{command!r}")
             subprocess.Popen(args, creationflags=no_window, close_fds=True)
+        elif multiline:
+            # cmd.exe ne gère pas les sauts de ligne via /c -> script .bat
+            bat = _write_temp_batch(command)
+            log.info(f"Commande cmd multi-ligne via {bat} : {command!r}")
+            subprocess.Popen(["cmd", "/c", bat], creationflags=no_window, close_fds=True)
         else:
             # shell=True lance "cmd.exe /c <command>" sans requoting parasite.
             log.info(f"Commande cmd : {command}")

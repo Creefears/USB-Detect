@@ -276,6 +276,16 @@ _EN = {
         "A newer version will be installed:\n\n  Installed version: v{old}\n  New version       : v{new}\n\nYour configuration (macros) will be preserved.\n\nContinue?",
 
     # ---- Changelog (Quoi de neuf) ----
+    "Les commandes sur plusieurs lignes fonctionnent enfin : nouvel éditeur "
+    "multi-ligne, une commande par ligne":
+        "Multi-line commands finally work: new multi-line editor, "
+        "one command per line",
+    "Les commandes cmd multi-lignes sont exécutées via un script temporaire":
+        "Multi-line cmd commands are run through a temporary script",
+    "Options avancées allégées : une seule ligne pour les conditions, "
+    "au lieu de trois outils redondants":
+        "Lighter advanced options: a single row for conditions, "
+        "instead of three redundant tools",
     "Correction des actions « Commande shell » : les commandes PowerShell "
     "et cmd s'exécutent désormais correctement":
         "Fixed “Shell command” actions: PowerShell and cmd commands now run correctly",
@@ -366,6 +376,31 @@ _EN = {
     "Condition :": "Condition:",
     "Conditions séparées par &&  (toutes doivent être vraies)":
         "Conditions separated by &&  (all must be true)",
+    "Toujours — utilisez les puces pour ajouter une condition":
+        "Always — use the chips to add a condition",
+    "Effacer la condition": "Clear the condition",
+    "Conditions séparées par &&  (toutes doivent être vraies)\n"
+    "  device_present:Nom   ce périphérique doit être connecté\n"
+    "  device_absent:Nom    ce périphérique ne doit pas être connecté\n"
+    "  monitors>=2          au moins 2 écrans (==, <=, >, < acceptés)":
+        "Conditions separated by &&  (all must be true)\n"
+        "  device_present:Name   this device must be connected\n"
+        "  device_absent:Name    this device must not be connected\n"
+        "  monitors>=2           at least 2 screens (==, <=, >, < accepted)",
+    "Une commande par ligne — elles sont exécutées dans l'ordre.\n"
+    "Exemple :\n"
+    "  taskkill /f /im explorer.exe\n"
+    "  start explorer.exe":
+        "One command per line — they run in order.\n"
+        "Example:\n"
+        "  taskkill /f /im explorer.exe\n"
+        "  start explorer.exe",
+    "Une commande par ligne · exécutées via PowerShell":
+        "One command per line · run via PowerShell",
+    "Une commande par ligne · exécutées via cmd.exe":
+        "One command per line · run via cmd.exe",
+    "Une commande par ligne · interpréteur détecté automatiquement":
+        "One command per line · interpreter detected automatically",
     "Périphérique présent": "Device present",
     "Périphérique absent": "Device absent",
     "Moniteurs ≥": "Monitors ≥",

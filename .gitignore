@@ -11,3 +11,4 @@ debug.log
 dist/
 build/
 *.spec
+usbdetect_*.bat
