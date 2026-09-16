@@ -17,6 +17,29 @@ permissions:
   contents: write
 
 jobs:
+  # Remplit la description de la release à partir du CHANGELOG (engine.py),
+  # uniquement si elle a été laissée vide — ce qui est écrit à la main est
+  # toujours conservé. Tourne en parallèle du build pour être immédiat.
+  release-notes:
+    if: github.event_name == 'release' && github.event.release.body == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate notes from CHANGELOG
+        run: python scripts/gen_release_notes.py "${{ github.event.release.tag_name }}" > notes.md
+
+      - name: Apply notes to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ github.event.release.tag_name }}" --notes-file notes.md
+
   build:
     runs-on: windows-latest
 

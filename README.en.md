@@ -105,6 +105,20 @@ python build.py
 ```
 The executable will be in the `dist/` folder.
 
+### Publishing a new version
+1. Update `APP_VERSION` and add a `CHANGELOG` entry in `engine.py`
+   (translate the entries in `i18n.py` for the English version).
+2. Create a GitHub release with the matching tag (e.g. `v2.4.0`).
+3. **Leave the description empty**: it is generated automatically from the
+   `CHANGELOG`, in both French and English. A hand-written description is
+   always kept as-is.
+4. The executable is built and attached to the release automatically.
+
+To preview the notes before publishing:
+```
+python scripts/gen_release_notes.py v2.4.0
+```
+
 ---
 
 ## Configuration
