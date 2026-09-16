@@ -1,8 +1,17 @@
 name: Build & Release
 
 on:
+  # Publier une release construit l'exe et l'attache à celle-ci.
   release:
     types: [published, unpublished]
+  # Déclenchement manuel (onglet Actions) : construit l'exe et le met à
+  # disposition en artefact téléchargeable, sans créer de release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag d'une release existante à laquelle attacher l'exe (laisser vide pour un artefact seul)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -26,7 +35,19 @@ jobs:
       - name: Build exe
         run: python build.py
 
+      # Toujours disponible : téléchargeable depuis la page du run Actions.
+      - name: Upload exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: USB-Detect-exe
+          path: dist/USB Detect.exe
+          if-no-files-found: error
+
+      # Attache l'exe à la release (publication de release, ou tag fourni
+      # manuellement lors d'un déclenchement depuis l'onglet Actions).
       - name: Upload exe to release
+        if: github.event_name == 'release' || inputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.event.release.tag_name }}
           files: dist/USB Detect.exe
